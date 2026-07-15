@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIMPEDIK · Dashboard Admin</title>
+<meta name="description" content="Dashboard Admin — Sistem Informasi Pendidikan Sekolah.">
+
+<!-- Font Awesome (ikon menu) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Google Fonts (sama dengan tema index.html) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+
+<!-- Supabase JS SDK -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  /* ============================================================
+     SIMPEDIK — Design tokens (disamakan dengan index.html)
+     Tema: kertas buku tulis sekolah (garis biru + margin merah)
+     ============================================================ */
+  :root{
+    --paper:        #c29a4f;
+    --paper-card:   #FFFEFB;
+    --rule-blue:    #B8D0E8;
+    --margin-red:   #C1503B;
+    --margin-red-soft: #E7A99A;
+    --ink:          #1C3357;
+    --ink-soft:     #52658A;
+    --ink-faint:    #8A99B8;
+    --gold:         #E3A23C;
+    --gold-deep:    #B87A22;
+    --green-deep:   #20443A;
+    --green-deep-2: #163229;
+    --danger:       #C1503B;
+
+    --font-display: 'Baloo 2', system-ui, sans-serif;
+    --font-body:    'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-hand:    'Caveat', cursive;
+
+    --radius-lg: 22px;
+    --radius-md: 14px;
+    --radius-sm: 9px;
+
+    --shadow-card: 0 18px 40px -14px rgba(28,51,87,0.28), 0 2px 8px rgba(28,51,87,0.06);
+    --shadow-soft: 0 8px 20px -10px rgba(28,51,87,0.22);
+
+    --header-height: 64px;
+    --primary-color: var(--gold-deep);
+    --secondary-color: var(--margin-red);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+  img{ max-width:100%; display:block; }
+  a{ color:inherit; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- Background: kertas buku tulis ---------- */
+  .notebook-bg{
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    background-image:
+      linear-gradient(180deg, rgba(251,247,239,0.92) 0%, rgba(251,247,239,0.86) 45%, rgba(251,247,239,0.94) 100%),
+      url('assets/bg1.jpeg');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-color: var(--paper);
+    background-attachment:fixed;
+  }
+  .notebook-bg::before{
+    content:"";
+    position:absolute;
+    top:0; bottom:0;
+    left:clamp(28px, 8vw, 96px);
+    width:2px;
+    background:var(--margin-red-soft);
+    opacity:0.5;
+  }
+  @media (max-width:768px), (hover:none){
+    .notebook-bg{ background-attachment:scroll; }
+    .notebook-bg::before{ left:22px; }
+  }
+
+  /* --- Navbar --- */
+  .navbar {
+    height: var(--header-height);
+    background-color: var(--paper-card);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 clamp(14px, 3vw, 28px);
+    box-shadow: var(--shadow-soft);
+    border-bottom: 4px solid var(--gold);
+    z-index: 1002;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--ink);
+    min-width: 0;
+  }
+
+  .navbar-brand .logo-badge{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:var(--green-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    overflow:hidden;
+    box-shadow:var(--shadow-soft);
+    border:2px solid #fff;
+  }
+  .navbar-brand .logo-badge img{
+    width:100%; height:100%; object-fit:contain;
+  }
+
+  .navbar-brand span {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .navbar-date {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    font-size: 0.85rem;
+    background:#F5EEDF;
+    padding:6px 12px;
+    border-radius:999px;
+    flex-shrink:0;
+  }
+  .navbar-date i{ color: var(--gold-deep); }
+
+  /* --- Main Content --- */
+  .main-content {
+    margin-top: var(--header-height);
+    padding: clamp(16px, 3vw, 28px);
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-card {
+    background: var(--paper-card);
+    padding: 22px clamp(18px, 3vw, 26px) 24px;
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--gold);
+    margin-bottom: 20px;
+    overflow: visible;
+  }
+
+  .dashboard-card h2{
+    font-family: var(--font-display);
+    color: var(--ink);
+    font-size: 1.4rem;
+  }
+  .dashboard-card h2 span{ color: var(--margin-red); }
+
+  /* --- Stat widgets --- */
+  .header-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  @media (min-width: 768px) {
+    .header-stats-grid { grid-template-columns: 3fr 1fr; }
+  }
+  .header-stats-grid .dashboard-card {
+    margin-bottom: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .stat-card {
+    background: var(--paper-card);
+    padding: 20px 22px;
+    border-radius: var(--radius-lg) 4px var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--margin-red);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .stat-info h3 { font-family: var(--font-display); font-size: 2rem; margin: 0 0 4px; color: var(--ink); }
+  .stat-info p { color: var(--ink-soft); font-size: 0.88rem; margin:0; font-weight:600; }
+  .stat-icon { font-size: 2.4rem; opacity: 0.25; color: var(--margin-red); }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .chart-card, .table-card {
+    background: var(--paper-card);
+    padding: 20px;
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--gold);
+  }
+
+  .card-header { margin-bottom: 15px; border-bottom: 1px dashed var(--rule-blue); padding-bottom: 10px; }
+  .card-header h3 { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); font-weight:700; margin:0; display:flex; align-items:center; gap:8px; }
+
+  .card-link{
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight:700;
+    padding: 6px 14px;
+    background-color: var(--green-deep);
+    color: #fff;
+    border-radius: 999px;
+    transition: background-color .18s ease, transform .12s ease;
+  }
+  .card-link:hover{ background-color: var(--green-deep-2); transform: translateY(-1px); }
+
+  /* Tables */
+  .table-responsive { overflow-x: auto; }
+  .custom-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .custom-table th, .custom-table td { padding: 11px 14px; text-align: left; border-bottom: 1px solid #EFE7D6; }
+  .custom-table th { background-color: #FBF6EC; color: var(--ink-soft); font-weight: 700; font-family: var(--font-body); }
+  .custom-table tr:hover { background-color: #FBF6EC; }
+  .badge { padding: 4px 9px; border-radius: 6px; font-size: 0.78rem; color: white; font-weight:700; }
+  .bg-danger { background-color: #C1503B; }
+  .bg-warning { background-color: #E3A23C; color: #3a2600; }
+  .bg-success { background-color: #2f9e6e; }
+
+  /* Footer */
+  .main-footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+  .main-footer .tagline{
+    font-family: var(--font-hand);
+    font-size: 1.35rem;
+    color: var(--gold-deep);
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .main-footer p{ margin: 2px 0; }
+
+  /* Dark card (rombel) */
+  .card-dark {
+    background-color: var(--green-deep-2);
+    color: #EAF2EE;
+    border-top: 5px solid #3cba92;
+  }
+  .card-dark .card-header { border-bottom: 1px dashed rgba(255,255,255,0.15); }
+  .card-dark .card-header h3 { color: #EAF2EE; }
+  .card-dark .custom-table th { background-color: #12241d; color: #a9c3b7; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .card-dark .custom-table td { border-bottom: 1px solid rgba(255,255,255,0.08); color: #d7e6de; }
+  .card-dark .custom-table tr:hover { background-color: rgba(255,255,255,0.05); }
+
+  @media (max-width: 768px) {
+    .navbar-brand span { font-size: 0.92rem; max-width: 46vw; }
+    .navbar-date { display: none !important; }
+    .main-content { padding-left: 10px; padding-right: 10px; }
+  }
+
+  /* --- Accordion --- */
+  .accordion-item {
+    border: 1px solid #EFE7D6;
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    overflow: visible;
+  }
+
+  .accordion-header {
+    background-color: #FBF6EC;
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s;
+    border-radius: var(--radius-md);
+  }
+
+  .accordion-header:hover { background-color: #F5EEDF; }
+
+  .accordion-header.active {
+    background-color: var(--green-deep);
+    color: white;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+
+  .accordion-title { font-family: var(--font-display); font-weight: 700; font-size: 0.98rem; }
+
+  .accordion-icon { transition: transform 0.3s; }
+  .accordion-header.active .accordion-icon { transform: rotate(180deg); }
+
+  .accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, background-color 0.3s;
+    background-color: var(--paper-card);
+  }
+  .accordion-content.active {
+    max-height: 2500px;
+    background-color: #FCFAF4;
+    overflow: visible;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+  }
+
+  .accordion-body { padding: 18px; color: var(--ink-soft); line-height: 1.6; overflow: visible; }
+
+  /* --- Menu Icon Grid --- */
+  .menu-icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 16px;
+    padding: 16px 0 8px 0;
+  }
+
+  .menu-icon-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    text-decoration: none;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .menu-icon-circle {
+    width: 62px;
+    height: 62px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    transition: all 0.25s ease;
+    border: none;
+    box-shadow: 0 4px 12px rgba(28,51,87,0.18);
+  }
+
+  .menu-icon-btn:hover .menu-icon-circle {
+    transform: translateY(-5px) scale(1.06);
+    box-shadow: 0 10px 22px rgba(28,51,87,0.28);
+    filter: brightness(1.06);
+  }
+
+  .ic-navy     { background: linear-gradient(135deg, #3E5C8A, #1C3357); }
+  .ic-teal     { background: linear-gradient(135deg, #4A9B8E, #1F4A43); }
+  .ic-blue     { background: linear-gradient(135deg, #6E9BC7, #2D4A75); }
+  .ic-green    { background: linear-gradient(135deg, #4FAE7E, #1F5A3E); }
+  .ic-plum     { background: linear-gradient(135deg, #9A6485, #5A3450); }
+  .ic-amber    { background: linear-gradient(135deg, #F0C168, #C98A2E); color: #4a2c00; }
+  .ic-gold     { background: linear-gradient(135deg, #E3A23C, #B87A22); color: #3a2600; }
+  .ic-slate    { background: linear-gradient(135deg, #5C6B7A, #2E3A44); }
+  .ic-red      { background: linear-gradient(135deg, #D3705A, #8A3527); }
+  .ic-danger   { background: linear-gradient(135deg, #C1503B, #7A2E1F); }
+
+  .menu-icon-label {
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    text-align: center;
+    line-height: 1.3;
+    width: 84px;
+    word-wrap: break-word;
+    font-weight: 700;
+    height: 2.6em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .menu-icon-btn:hover .menu-icon-label { color: var(--ink); }
+
+  @media (max-width: 768px) {
+    .accordion-header { padding: 12px 15px; }
+    .accordion-title { font-size: 0.86rem; }
+    .accordion-body { padding: 14px; font-size: 0.85rem; }
+    .menu-icon-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 12px; padding: 14px 0 4px 0; }
+    .menu-icon-circle { width: 52px; height: 52px; font-size: 1.3rem; border-radius: 12px; }
+    .menu-icon-label { font-size: 0.65rem; width: 65px; height: 2.6em; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="notebook-bg" aria-hidden="true"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="#" class="navbar-brand">
+      <span class="logo-badge">
+        <img src="" alt="Logo Sekolah" style="display:none;">
+      </span>
+      <span></span>
+    </a>
+    <div class="navbar-date">
+      <i class="far fa-calendar-alt"></i>
+      <span id="navbarDate"></span>
+    </div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    <div class="header-stats-grid">
+      <div class="dashboard-card">
+        <h2>Selamat Datang, <span>Admin</span></h2>
+        <p style="color: var(--ink-soft); margin-top: 10px;">Ini adalah halaman dashboard utama aplikasi sekolah.</p>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-info">
+          <h3 id="totalSiswa">0</h3>
+          <p>Siswa Aktif</p>
+        </div>
+        <i class="fas fa-user-graduate stat-icon"></i>
+      </div>
+    </div>
+
+    <!-- Accordion Container -->
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h3><i class="fas fa-info-circle" style="color: var(--gold-deep);"></i> Pilih Menu</h3>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+          <span class="accordion-title">Menu Sistem</span>
+          <i class="fas fa-chevron-down accordion-icon"></i>
+        </div>
+        <div class="accordion-content">
+          <div class="accordion-body">
+            <div class="menu-icon-grid">
+              <a href="identitassekolah.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-navy"><i class="fas fa-school"></i></div>
+                <span class="menu-icon-label">Identitas Sekolah</span>
+              </a>
+              <a href="rombel.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-teal"><i class="fas fa-layer-group"></i></div>
+                <span class="menu-icon-label">Rombongan Belajar</span>
+              </a>
+              <a href="dataguru.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-blue"><i class="fas fa-chalkboard-teacher"></i></div>
+                <span class="menu-icon-label">Data Guru</span>
+              </a>
+              <a href="datasiswa.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-green"><i class="fas fa-user-graduate"></i></div>
+                <span class="menu-icon-label">Data Siswa</span>
+              </a>
+              <a href="walikelas.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-plum"><i class="fas fa-user-tie"></i></div>
+                <span class="menu-icon-label">Walikelas</span>
+              </a>
+              <a href="gurupiket.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-amber"><i class="fas fa-clipboard-list"></i></div>
+                <span class="menu-icon-label">Guru Piket</span>
+              </a>
+              <a href="mappingsiswa.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-teal"><i class="fas fa-sitemap"></i></div>
+                <span class="menu-icon-label">Mapping Siswa</span>
+              </a>
+              <a href="datamapel.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-gold"><i class="fas fa-book"></i></div>
+                <span class="menu-icon-label">Mata Pelajaran</span>
+              </a>
+              <a href="#" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-slate"><i class="fas fa-history"></i></div>
+                <span class="menu-icon-label">Back Up &amp; Reset</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+          <span class="accordion-title">Laporan</span>
+          <i class="fas fa-chevron-down accordion-icon"></i>
+        </div>
+        <div class="accordion-content">
+          <div class="accordion-body">
+            <div class="menu-icon-grid">
+              <a href="piketharianadmin.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-blue"><i class="fas fa-calendar-check"></i></div>
+                <span class="menu-icon-label">Piket Kebersihan</span>
+              </a>
+              <a href="absensiadmin.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-green"><i class="fas fa-user-check"></i></div>
+                <span class="menu-icon-label">Kehadiran Siswa</span>
+              </a>
+              <a href="nilaiakademisadmin.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-gold"><i class="fas fa-graduation-cap"></i></div>
+                <span class="menu-icon-label">Nilai Akademis</span>
+              </a>
+              <a href="kasusadmin.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-red"><i class="fas fa-exclamation-triangle"></i></div>
+                <span class="menu-icon-label">Kasus Belajar</span>
+              </a>
+              <a href="dispensasiadmin.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-plum"><i class="fas fa-file-signature"></i></div>
+                <span class="menu-icon-label">Dispensasi</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+          <span class="accordion-title">Tata Usaha</span>
+          <i class="fas fa-chevron-down accordion-icon"></i>
+        </div>
+        <div class="accordion-content">
+          <div class="accordion-body">
+            <div class="menu-icon-grid">
+              <a href="daftarpegawai.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-navy"><i class="fas fa-id-badge"></i></div>
+                <span class="menu-icon-label">Data Pegawai</span>
+              </a>
+              <a href="tatapersuratan.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-slate"><i class="fas fa-envelope-open-text"></i></div>
+                <span class="menu-icon-label">Tata Arsip</span>
+              </a>
+              <a href="daftarpesertasumbangan.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-teal"><i class="fas fa-users"></i></div>
+                <span class="menu-icon-label">Mapping Iuran Pendidikan</span>
+              </a>
+              <a href="pemasukankomite.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-green"><i class="fas fa-arrow-circle-down"></i></div>
+                <span class="menu-icon-label">Pemasukan Iuran Pendidikan</span>
+              </a>
+              <a href="pengeluarankomite.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-red"><i class="fas fa-arrow-circle-up"></i></div>
+                <span class="menu-icon-label">Pengeluaran Iuran Pendidikan</span>
+              </a>
+              <a href="neracakomite.html" class="menu-icon-btn">
+                <div class="menu-icon-circle ic-gold"><i class="fas fa-balance-scale"></i></div>
+                <span class="menu-icon-label">Neraca Iuran Pendidikan</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-card card-dark">
+      <div class="card-header">
+        <h3><i class="fas fa-layer-group" style="color: #60a5fa;"></i> Data Rombongan Belajar</h3>
+      </div>
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr><th>No</th><th>Nama Kelas</th><th>Jumlah Siswa</th></tr>
+          </thead>
+          <tbody id="rombelTableBody">
+            <tr><td colspan="3" style="text-align:center;">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="card-header">
+          <h3><i class="fas fa-chart-bar"></i> Statistik Kehadiran Siswa (Semester Genap)</h3>
+        </div>
+        <div style="position: relative; height: 300px;">
+          <canvas id="attendanceChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="card-header">
+          <h3><i class="fas fa-percentage"></i> Perbandingan Kehadiran Per Kelas (<span id="chartMonthLabel">Bulan Ini</span>)</h3>
+        </div>
+        <div style="position: relative; height: 300px;">
+          <canvas id="classAttendanceChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tables Section -->
+    <div class="charts-grid">
+      <div class="table-card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3><i class="fas fa-sort-numeric-down"></i> Nilai Akademik Terendah</h3>
+          <a href="nilaiakademisadmin.html" class="card-link">Lihat Detail</a>
+        </div>
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr><th>Nama Siswa</th><th>Kelas</th><th>Mapel</th><th>Nilai</th></tr>
+            </thead>
+            <tbody id="lowestGradesTableBody">
+              <tr><td colspan="4" style="text-align:center;">Memuat data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3><i class="fas fa-user-injured"></i> Data Kasus Terbaru</h3>
+          <a href="kasusadmin.html" class="card-link">Lihat Selengkapnya</a>
+        </div>
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr><th>Tanggal</th><th>Siswa</th><th>Kelas</th><th>Jenis Kasus</th></tr>
+            </thead>
+            <tbody id="recentCasesTableBody">
+              <tr><td colspan="4" style="text-align:center;">Memuat data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <p class="tagline">Cerdas, Kreatif, Berkarakter</p>
+      <p>&copy; 2026 SMKN 1 SIMPANG TERITIP.</p>
+      <p>CopyRight Kenji Studio Developer.</p>
+    </footer>
+  </main>
+
+  <script>
+    // --- Accordion Toggle Function ---
+    function toggleAccordion(header) {
+      const content = header.nextElementSibling;
+      const isActive = header.classList.contains('active');
+
+      document.querySelectorAll('.accordion-header').forEach(h => {
+        h.classList.remove('active');
+        h.nextElementSibling.classList.remove('active');
+      });
+
+      if (!isActive) {
+        header.classList.add('active');
+        content.classList.add('active');
+      }
+    }
+
+    // --- Supabase Integration ---
+    const supabaseUrl = 'https://ixccpgfllwerlifpcpdp.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4Y2NwZ2ZsbHdlcmxpZnBjcGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTE3MTEsImV4cCI6MjA5ODQyNzcxMX0.CwrrPcl0RkDK4zRWhfp7oTqwNlxOIZIb3IGUUzKTE9Q';
+
+    const absensiUrl = 'https://ixccpgfllwerlifpcpdp.supabase.co';
+    const absensiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4Y2NwZ2ZsbHdlcmxpZnBjcGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTE3MTEsImV4cCI6MjA5ODQyNzcxMX0.CwrrPcl0RkDK4zRWhfp7oTqwNlxOIZIb3IGUUzKTE9Q';
+
+    if (typeof supabase !== 'undefined') {
+      const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+      const absensiClient = supabase.createClient(absensiUrl, absensiKey);
+
+      async function loadSchoolIdentity() {
+        try {
+          const { data, error } = await supabaseClient
+            .from('identitassekolah')
+            .select('nama_sekolah, logo')
+            .limit(1)
+            .single();
+
+          if (data) {
+            if (data.nama_sekolah) {
+              document.querySelector('.navbar-brand span:last-child').textContent = data.nama_sekolah;
+            }
+            if (data.logo) {
+              const img = document.querySelector('.navbar-brand img');
+              img.src = data.logo;
+              img.style.display = 'block';
+            }
+          }
+        } catch (err) {
+          console.error("Error loading school identity:", err);
+        }
+      }
+
+      async function loadDashboardStats() {
+        try {
+          const { count: siswaCount, error: siswaError } = await supabaseClient
+            .from('datasiswa')
+            .select('*', { count: 'exact', head: true });
+
+          if (!siswaError) {
+            document.getElementById('totalSiswa').textContent = (siswaCount || 0).toLocaleString();
+          }
+
+          const { data: rombelData, error: rombelError } = await supabaseClient
+            .from('rombel')
+            .select('*')
+            .order('nama_kelas', { ascending: true });
+
+          const tbody = document.getElementById('rombelTableBody');
+          tbody.innerHTML = '';
+
+          if (rombelError) throw rombelError;
+
+          if (rombelData && rombelData.length > 0) {
+            rombelData.forEach((rombel, index) => {
+              const row = `<tr>
+                <td>${index + 1}</td>
+                <td>${rombel.nama_kelas}</td>
+                <td>${rombel.jumlah_siswa || 0}</td>
+              </tr>`;
+              tbody.innerHTML += row;
+            });
+          } else {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Belum ada data rombel.</td></tr>';
+          }
+        } catch (err) {
+          console.error("Error loading dashboard stats:", err);
+        }
+      }
+
+      let attendanceChartInstance = null;
+
+      async function loadAttendanceChart() {
+        const ctx = document.getElementById('attendanceChart').getContext('2d');
+
+        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'];
+        const currentYear = new Date().getFullYear();
+
+        const stats = {
+          Hadir: [0, 0, 0, 0, 0, 0],
+          Sakit: [0, 0, 0, 0, 0, 0],
+          Ijin: [0, 0, 0, 0, 0, 0],
+          Alpa: [0, 0, 0, 0, 0, 0]
+        };
+
+        try {
+          const startDate = `${currentYear}-01-01`;
+          const endDate = `${currentYear}-06-30`;
+
+          const { data, error } = await absensiClient
+            .from('absensiswa')
+            .select('tanggal, status_kehadiran')
+            .gte('tanggal', startDate)
+            .lte('tanggal', endDate);
+
+          if (error) throw error;
+
+          if (data) {
+            data.forEach(item => {
+              const date = new Date(item.tanggal);
+              const monthIndex = date.getMonth();
+
+              if (monthIndex >= 0 && monthIndex <= 5) {
+                const status = item.status_kehadiran;
+                if (status === 'Hadir') { stats.Hadir[monthIndex]++; }
+                else if (status === 'Alpa' || status === 'Alpha') { stats.Alpa[monthIndex]++; }
+                else if (status === 'Sakit') { stats.Sakit[monthIndex]++; }
+                else if (status === 'Ijin' || status === 'Izin') { stats.Ijin[monthIndex]++; }
+              }
+            });
+          }
+
+          if (attendanceChartInstance) { attendanceChartInstance.destroy(); }
+
+          attendanceChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: months,
+              datasets: [
+                { label: 'Hadir', data: stats.Hadir, backgroundColor: '#2f9e6e', borderRadius: 4 },
+                { label: 'Sakit', data: stats.Sakit, backgroundColor: '#4facfe', borderRadius: 4 },
+                { label: 'Ijin', data: stats.Ijin, backgroundColor: '#E3A23C', borderRadius: 4 },
+                { label: 'Alpa', data: stats.Alpa, backgroundColor: '#C1503B', borderRadius: 4 }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false,
+              plugins: { legend: { position: 'bottom' } },
+              scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Jumlah Siswa' } },
+                x: { title: { display: true, text: 'Bulan' } }
+              }
+            }
+          });
+        } catch (err) {
+          console.error("Error loading chart data:", err);
+        }
+      }
+
+      async function loadClassAttendanceChart() {
+        const ctx = document.getElementById('classAttendanceChart').getContext('2d');
+
+        try {
+          const { data: rombelData, error: rombelError } = await supabaseClient
+            .from('rombel')
+            .select('nama_kelas')
+            .order('nama_kelas');
+
+          if (rombelError) throw rombelError;
+
+          const classStats = {};
+          if (rombelData) {
+            rombelData.forEach(r => { classStats[r.nama_kelas] = { total: 0, hadir: 0 }; });
+          }
+
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+          const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+          const { data, error } = await absensiClient
+            .from('absensiswa')
+            .select('kelas, status_kehadiran')
+            .gte('tanggal', startOfMonth)
+            .lte('tanggal', endOfMonth);
+
+          if (error) throw error;
+
+          if (data) {
+            data.forEach(record => {
+              const k = record.kelas || 'Tanpa Kelas';
+              if (!classStats[k]) classStats[k] = { total: 0, hadir: 0 };
+              classStats[k].total++;
+              if (record.status_kehadiran === 'Hadir') { classStats[k].hadir++; }
+            });
+          }
+
+          const labels = Object.keys(classStats).sort();
+          const percentages = labels.map(k => {
+            const s = classStats[k];
+            return s.total > 0 ? Math.round((s.hadir / s.total) * 100) : 0;
+          });
+
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{ label: '% Kehadiran', data: percentages, backgroundColor: '#B87A22', borderRadius: 4 }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(context) { return context.parsed.y + '% Hadir'; } } }
+              },
+              scales: {
+                y: { beginAtZero: true, max: 100, title: { display: true, text: 'Persentase (%)' } },
+                x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 45 } }
+              }
+            }
+          });
+        } catch (err) {
+          console.error("Error loading class chart:", err);
+        }
+      }
+
+      async function loadLowestGrades() {
+        const tbody = document.getElementById('lowestGradesTableBody');
+        if (!tbody) return;
+
+        try {
+          const { data, error } = await absensiClient
+            .from('nilaimapel')
+            .select('nama_siswa, kelas, mapel, nr')
+            .not('nr', 'is', null)
+            .order('nr', { ascending: true })
+            .limit(5);
+
+          if (error) throw error;
+
+          tbody.innerHTML = '';
+
+          if (data && data.length > 0) {
+            data.forEach(item => {
+              const nilai = parseFloat(item.nr);
+              let badgeClass = 'bg-success';
+              if (nilai < 70) badgeClass = 'bg-danger';
+              else if (nilai < 80) badgeClass = 'bg-warning';
+
+              const row = `<tr>
+                <td>${item.nama_siswa || '-'}</td>
+                <td>${item.kelas || '-'}</td>
+                <td>${item.mapel || '-'}</td>
+                <td><span class="badge ${badgeClass}">${item.nr}</span></td>
+              </tr>`;
+              tbody.innerHTML += row;
+            });
+          } else {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada data nilai rendah.</td></tr>';
+          }
+        } catch (err) {
+          console.error("Error loading lowest grades:", err);
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: #C1503B;">Gagal memuat data: ${err.message}</td></tr>`;
+        }
+      }
+
+      async function loadRecentCases() {
+        const tbody = document.getElementById('recentCasesTableBody');
+        if (!tbody) return;
+
+        try {
+          const { data, error } = await absensiClient
+            .from('kasussiswa')
+            .select('tanggal, nama_siswa, kelas, jenis_kasus')
+            .order('tanggal', { ascending: false })
+            .limit(5);
+
+          if (error) throw error;
+
+          tbody.innerHTML = '';
+
+          if (data && data.length > 0) {
+            data.forEach(item => {
+              let dateStr = item.tanggal;
+              if (dateStr) {
+                const d = new Date(dateStr);
+                dateStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+              }
+
+              const row = `<tr>
+                <td>${dateStr || '-'}</td>
+                <td>${item.nama_siswa || '-'}</td>
+                <td>${item.kelas || '-'}</td>
+                <td>${item.jenis_kasus || '-'}</td>
+              </tr>`;
+              tbody.innerHTML += row;
+            });
+          } else {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada data kasus terbaru.</td></tr>';
+          }
+        } catch (err) {
+          console.error("Error loading recent cases:", err);
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: #C1503B;">Gagal memuat data: ${err.message}</td></tr>`;
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', loadSchoolIdentity);
+      document.addEventListener('DOMContentLoaded', loadDashboardStats);
+      document.addEventListener('DOMContentLoaded', loadAttendanceChart);
+      document.addEventListener('DOMContentLoaded', loadClassAttendanceChart);
+      document.addEventListener('DOMContentLoaded', loadLowestGrades);
+      document.addEventListener('DOMContentLoaded', loadRecentCases);
+    }
+
+    // --- Date Display in Navbar ---
+    function updateNavbarDate() {
+      const now = new Date();
+      const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+      document.getElementById('navbarDate').textContent = now.toLocaleDateString('id-ID', options);
+
+      const monthName = now.toLocaleDateString('id-ID', { month: 'long' });
+      if (document.getElementById('chartMonthLabel')) {
+        document.getElementById('chartMonthLabel').textContent = monthName;
+      }
+    }
+    document.addEventListener('DOMContentLoaded', updateNavbarDate);
+  </script>
+</body>
+</html>
