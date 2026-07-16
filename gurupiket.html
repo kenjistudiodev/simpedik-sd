@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIMPEDIK · Data Guru Piket</title>
+<meta name="description" content="Data Guru Piket — Sistem Informasi Pendidikan Sekolah.">
+
+<!-- Font Awesome (ikon) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Google Fonts (sama dengan tema dahsboardadmin.html) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+
+<!-- Supabase JS SDK -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- jsPDF & AutoTable untuk Export PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  /* ============================================================
+     SIMPEDIK — Design tokens (disamakan dengan dahsboardadmin.html)
+     Tema: kertas buku tulis sekolah (garis biru + margin merah)
+     ============================================================ */
+  :root{
+    --paper:        #c29a4f;
+    --paper-card:   #FFFEFB;
+    --rule-blue:    #B8D0E8;
+    --margin-red:   #C1503B;
+    --margin-red-soft: #E7A99A;
+    --ink:          #1C3357;
+    --ink-soft:     #52658A;
+    --ink-faint:    #8A99B8;
+    --gold:         #E3A23C;
+    --gold-deep:    #B87A22;
+    --green-deep:   #20443A;
+    --green-deep-2: #163229;
+    --danger:       #C1503B;
+
+    --font-display: 'Baloo 2', system-ui, sans-serif;
+    --font-body:    'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-hand:    'Caveat', cursive;
+
+    --radius-lg: 22px;
+    --radius-md: 14px;
+    --radius-sm: 9px;
+
+    --shadow-card: 0 18px 40px -14px rgba(28,51,87,0.28), 0 2px 8px rgba(28,51,87,0.06);
+    --shadow-soft: 0 8px 20px -10px rgba(28,51,87,0.22);
+
+    --header-height: 64px;
+    --primary-color: var(--gold-deep);
+    --secondary-color: var(--margin-red);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+  img{ max-width:100%; display:block; }
+  a{ color:inherit; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- Background: kertas buku tulis ---------- */
+  .notebook-bg{
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    background-image:
+      linear-gradient(180deg, rgba(251,247,239,0.92) 0%, rgba(251,247,239,0.86) 45%, rgba(251,247,239,0.94) 100%),
+      url('assets/bg1.jpeg');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-color: var(--paper);
+    background-attachment:fixed;
+  }
+  .notebook-bg::before{
+    content:"";
+    position:absolute;
+    top:0; bottom:0;
+    left:clamp(28px, 8vw, 96px);
+    width:2px;
+    background:var(--margin-red-soft);
+    opacity:0.5;
+  }
+  @media (max-width:768px), (hover:none){
+    .notebook-bg{ background-attachment:scroll; }
+    .notebook-bg::before{ left:22px; }
+  }
+
+  /* --- Navbar --- */
+  .navbar {
+    height: var(--header-height);
+    background-color: var(--paper-card);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 clamp(14px, 3vw, 28px);
+    box-shadow: var(--shadow-soft);
+    border-bottom: 4px solid var(--gold);
+    z-index: 2500;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    justify-content: space-between;
+  }
+
+  .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--ink);
+    min-width: 0;
+  }
+
+  .navbar-brand .logo-badge{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:var(--green-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    overflow:hidden;
+    box-shadow:var(--shadow-soft);
+    border:2px solid #fff;
+  }
+  .navbar-brand .logo-badge img{
+    width:100%; height:100%; object-fit:contain;
+  }
+
+  .navbar-brand span {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .navbar-dashboard-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--green-deep), var(--green-deep-2));
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.88rem;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 8px 18px -8px rgba(32,68,58,.6);
+    transition: transform .15s ease, filter .15s ease;
+    flex-shrink: 0;
+  }
+  .navbar-dashboard-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+
+  /* --- Main Content --- */
+  .main-content {
+    margin-top: var(--header-height);
+    padding: clamp(16px, 3vw, 28px);
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-card {
+    background: var(--paper-card);
+    padding: 22px clamp(18px, 3vw, 26px) 24px;
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--gold);
+    margin-bottom: 20px;
+    overflow: visible;
+  }
+
+  .dashboard-card h2{
+    font-family: var(--font-display);
+    color: var(--ink);
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+  }
+
+  /* Footer */
+  .main-footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+  .main-footer p{ margin: 2px 0; }
+
+  /* --- Tabel Styling --- */
+  .table-responsive { overflow-x: auto; }
+
+  .custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    background: var(--paper-card);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .custom-table thead {
+    background: linear-gradient(135deg, var(--green-deep), var(--green-deep-2));
+    color: #fff;
+  }
+
+  .custom-table th {
+    padding: 13px 14px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+    font-family: var(--font-body);
+  }
+
+  .custom-table tbody tr {
+    border-bottom: 1px solid #EFE7D6;
+    transition: background-color 0.2s;
+  }
+  .custom-table tbody tr:hover { background-color: #FBF6EC; }
+  .custom-table tbody tr:last-child { border-bottom: none; }
+
+  .custom-table td {
+    padding: 12px 14px;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    vertical-align: middle;
+  }
+
+  /* Badge ID */
+  .badge-id {
+    display: inline-block;
+    padding: 4px 9px;
+    background-color: #F5EEDF;
+    color: var(--gold-deep);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-family: monospace;
+  }
+
+  /* Badge Hari */
+  .badge-hari {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-senin  { background-color: #E4ECF7; color: #2D4A75; }
+  .badge-selasa { background-color: #FBF0DC; color: var(--gold-deep); }
+  .badge-rabu   { background-color: #E1F3EA; color: var(--green-deep); }
+  .badge-kamis  { background-color: #F0E6F5; color: #5b21b6; }
+  .badge-jumat  { background-color: #FBE3ED; color: #9d174d; }
+  .badge-sabtu  { background-color: #FDE9D9; color: #C2701A; }
+  .badge-minggu { background-color: #FBE1DD; color: var(--margin-red); }
+
+  /* Nama guru */
+  .guru-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .guru-icon { color: var(--gold-deep); font-size: 0.85rem; }
+
+  /* Tombol Aksi */
+  .action-buttons { display: flex; gap: 8px; }
+
+  .btn-action {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.95rem;
+  }
+  .btn-edit { background-color: #F5EEDF; color: var(--gold-deep); }
+  .btn-edit:hover { background-color: var(--gold-deep); color: #fff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(184,122,34,.3); }
+  .btn-delete { background-color: #FBE3DE; color: var(--margin-red); }
+  .btn-delete:hover { background-color: var(--margin-red); color: #fff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(193,80,59,.3); }
+
+  /* Button Styles */
+  .btn {
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: none;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+    color: #3a2600;
+    box-shadow: 0 8px 18px -8px rgba(184,122,34,.55);
+  }
+  .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.05); }
+
+  .btn-danger {
+    background: linear-gradient(135deg, var(--margin-red), #8f3a2a);
+    color: #fff;
+    box-shadow: 0 8px 18px -8px rgba(193,80,59,.6);
+  }
+  .btn-danger:hover { transform: translateY(-2px); filter: brightness(1.08); }
+
+  .btn-secondary { background-color: #EFE7D6; color: var(--ink); }
+  .btn-secondary:hover { background-color: #E5DAC2; transform: translateY(-2px); }
+
+  /* Search & Filter */
+  .table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .search-box { position: relative; flex: 1; min-width: 250px; }
+  .search-box input {
+    width: 100%;
+    padding: 11px 15px 11px 40px;
+    border: 1px solid #EFE7D6;
+    border-radius: var(--radius-sm);
+    font-size: 0.92rem;
+    font-family: var(--font-body);
+    transition: all 0.2s;
+    background: #FBF9F3;
+    color: var(--ink);
+  }
+  .search-box input:focus {
+    outline: none;
+    border-color: var(--gold-deep);
+    box-shadow: 0 0 0 3px rgba(184,122,34,0.12);
+    background: #fff;
+  }
+  .search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); }
+
+  .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filter-select {
+    padding: 9px 12px;
+    border: 1px solid #EFE7D6;
+    border-radius: var(--radius-sm);
+    background-color: #FBF9F3;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    cursor: pointer;
+  }
+
+  /* Modal */
+  .modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(28,51,87,0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal.active { display: flex; }
+
+  .modal-content {
+    background-color: var(--paper-card);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--gold);
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, var(--green-deep), var(--green-deep-2));
+    color: #fff;
+    border-radius: 4px var(--radius-lg) 0 0;
+  }
+  .modal-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  .close-modal {
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    background: rgba(255,255,255,0.15);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .close-modal:hover { background: rgba(255,255,255,0.3); }
+
+  .modal-body { padding: 22px 24px; }
+
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 0.9rem;
+  }
+  .form-group label i { color: var(--gold-deep); }
+
+  .form-group input,
+  .form-group select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid #EFE7D6;
+    border-radius: var(--radius-sm);
+    font-size: 0.92rem;
+    font-family: var(--font-body);
+    background: #FBF9F3;
+    color: var(--ink);
+    transition: all 0.2s;
+  }
+  .form-group input:focus,
+  .form-group select:focus {
+    outline: none;
+    border-color: var(--gold-deep);
+    box-shadow: 0 0 0 3px rgba(184,122,34,0.12);
+    background: #fff;
+  }
+  .form-group input:read-only { background-color: #F1EBDC; cursor: not-allowed; }
+
+  .modal-footer {
+    padding: 18px 24px 22px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px dashed var(--rule-blue);
+  }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--ink-faint); }
+  .empty-state i { font-size: 2.8rem; margin-bottom: 14px; color: var(--rule-blue); }
+  .empty-state h4 { font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 8px; color: var(--ink-soft); }
+
+  /* Loading */
+  .loading { display: flex; justify-content: center; align-items: center; padding: 40px; }
+  .spinner {
+    width: 38px; height: 38px;
+    border: 4px solid #EFE7D6;
+    border-top: 4px solid var(--gold-deep);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .navbar-brand span { font-size: 0.92rem; max-width: 40vw; }
+    .navbar-dashboard-btn span { display: none; }
+    .navbar-dashboard-btn { padding: 10px 12px; }
+    .main-content { padding-left: 10px; padding-right: 10px; }
+    .dashboard-card { padding: 16px; }
+
+    .table-controls { flex-direction: column; align-items: stretch; }
+    .search-box { min-width: 100%; }
+    .filter-group { width: 100%; justify-content: center; }
+    .filter-select { flex: 1 1 100%; }
+    .filter-group .btn { flex: 1 1 auto; justify-content: center; }
+
+    .custom-table { display: block; overflow-x: auto; }
+    .action-buttons { justify-content: center; }
+
+    .modal-content { width: 100%; margin: 0; }
+    .modal-footer { flex-wrap: wrap; }
+    .modal-footer .btn { flex: 1 1 auto; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="notebook-bg" aria-hidden="true"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="dahsboardadmin.html" class="navbar-brand">
+      <span class="logo-badge">
+        <img src="" alt="Logo Sekolah" style="display:none;">
+      </span>
+      <span></span>
+    </a>
+    <a href="dahsboardadmin.html" class="navbar-dashboard-btn">
+      <i class="fas fa-th-large"></i> <span>Dashboard</span>
+    </a>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    <div class="dashboard-card">
+      <h2><i class="fas fa-clipboard-list" style="color: var(--gold-deep);"></i> Data Guru Piket</h2>
+      <p style="color: var(--ink-soft);">Halaman untuk mengelola data guru piket harian.</p>
+    </div>
+
+    <!-- Container Tabel Data Guru Piket -->
+    <div class="dashboard-card">
+      <div class="table-controls">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="searchInput" placeholder="Cari berdasarkan ID, hari, atau nama guru...">
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="filterHari" title="Filter berdasarkan hari">
+            <option value="">Semua Hari</option>
+            <option value="SENIN">Senin</option>
+            <option value="SELASA">Selasa</option>
+            <option value="RABU">Rabu</option>
+            <option value="KAMIS">Kamis</option>
+            <option value="JUMAT">Jumat</option>
+            <option value="SABTU">Sabtu</option>
+            <option value="MINGGU">Minggu</option>
+          </select>
+          <button class="btn btn-primary" id="addGuruPiketBtn">
+            <i class="fas fa-plus"></i> Tambah Guru Piket
+          </button>
+          <button class="btn btn-danger" id="exportPdfBtn">
+            <i class="fas fa-file-pdf"></i> Export PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th width="50">No</th>
+              <th width="150">ID Guru Piket</th>
+              <th width="100">Hari</th>
+              <th>Guru Piket 1</th>
+              <th>Guru Piket 2</th>
+              <th>Guru Piket 3</th>
+              <th>Guru Piket 4</th>
+              <th>Guru Piket 5</th>
+              <th>Guru Piket 6</th>
+              <th>Guru Piket 7</th>
+              <th>Guru Piket 8</th>
+              <th width="110">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="piketTableBody">
+            <tr>
+              <td colspan="12">
+                <div class="loading"><div class="spinner"></div></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <p>&copy; 2026 SMKN 1 SIMPANG TERITIP.</p>
+      <p>CopyRight Kenji Studio Developer.</p>
+    </footer>
+  </main>
+
+  <!-- Modal Input Guru Piket -->
+  <div id="piketModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-calendar-check"></i> Input Jadwal Piket</h3>
+        <span class="close-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <form id="piketForm">
+          <input type="hidden" id="isEditMode" value="false">
+          <input type="hidden" id="originalId">
+
+          <div class="form-group">
+            <label for="idPiket"><i class="fas fa-id-badge"></i> ID Guru Piket</label>
+            <input type="text" id="idPiket" name="idPiket" placeholder="Contoh: PIKET-SENIN-01" required>
+          </div>
+
+          <div class="form-group">
+            <label for="hariPiket"><i class="fas fa-calendar-day"></i> Hari</label>
+            <select id="hariPiket" name="hariPiket" required>
+              <option value="">Pilih Hari</option>
+              <option value="SENIN">Senin</option>
+              <option value="SELASA">Selasa</option>
+              <option value="RABU">Rabu</option>
+              <option value="KAMIS">Kamis</option>
+              <option value="JUMAT">Jumat</option>
+              <option value="SABTU">Sabtu</option>
+              <option value="MINGGU">Minggu</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="guru1"><i class="fas fa-user-tie"></i> Guru Piket 1 (Utama)</label>
+            <select id="guru1" name="guru1" required>
+              <option value="">Pilih Guru Utama</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="guru2"><i class="fas fa-user"></i> Guru Piket 2 (Pendamping)</label>
+            <select id="guru2" name="guru2">
+              <option value="">Pilih Guru Pendamping (Opsional)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="guru3"><i class="fas fa-user"></i> Guru Piket 3 (Pendamping)</label>
+            <select id="guru3" name="guru3">
+              <option value="">Pilih Guru Pendamping (Opsional)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="guru4"><i class="fas fa-user"></i> Guru Piket 4 (Pendamping)</label>
+            <select id="guru4" name="guru4">
+              <option value="">Pilih Guru Pendamping (Opsional)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="guru5"><i class="fas fa-user"></i> Guru Piket 5 (Pendamping)</label>
+            <select id="guru5" name="guru5">
+              <option value="">Pilih Guru Pendamping (Opsional)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="guru6"><i class="fas fa-user"></i> Guru Piket 6 (Pendamping)</label>
+            <select id="guru6" name="guru6">
+              <option value="">Pilih Guru Pendamping (Opsional)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="guru7"><i class="fas fa-user"></i> Guru Piket 7 (Pendamping)</label>
+            <select id="guru7" name="guru7">
+              <option value="">Pilih Guru Pendamping (Opsional)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="guru8"><i class="fas fa-user"></i> Guru Piket 8 (Pendamping)</label>
+            <select id="guru8" name="guru8">
+              <option value="">Pilih Guru Pendamping (Opsional)</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary cancel-btn">Batal</button>
+        <button type="button" class="btn btn-primary" id="savePiketBtn">
+          <i class="fas fa-save"></i> Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Supabase Integration ---
+    const supabaseUrl = 'https://ovaekdszrtrqyfxubjzw.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YWVrZHN6cnRycXlmeHVianp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNDk1MjAsImV4cCI6MjA5OTcyNTUyMH0.UBbE3tgpaVLHWoZX7h30KlrLSOVHTheZw7xvMLOrD_E';
+
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    let schoolData = {}; // Menyimpan data sekolah untuk keperluan export
+
+    async function loadSchoolIdentity() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('identitassekolah')
+          .select('nama_sekolah, logo, kop_sekolah')
+          .limit(1)
+          .single();
+
+        if (data) {
+          schoolData = data;
+          if (data.nama_sekolah) {
+            document.querySelector('.navbar-brand span:last-child').textContent = data.nama_sekolah;
+          }
+          if (data.logo) {
+            const img = document.querySelector('.navbar-brand img');
+            img.src = data.logo;
+            img.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error("Error loading school identity:", err);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', loadSchoolIdentity);
+
+    // --- Modal Logic ---
+    const modal = document.getElementById('piketModal');
+    const addBtn = document.getElementById('addGuruPiketBtn');
+    const closeSpan = document.querySelector('.close-modal');
+    const cancelBtn = document.querySelector('.cancel-btn');
+    const saveBtn = document.getElementById('savePiketBtn');
+    const piketForm = document.getElementById('piketForm');
+    const isEditModeInput = document.getElementById('isEditMode');
+    const originalIdInput = document.getElementById('originalId');
+    const idPiketInput = document.getElementById('idPiket');
+    const hariPiketInput = document.getElementById('hariPiket');
+
+    // Buka Modal untuk Tambah
+    addBtn.addEventListener('click', async () => {
+      piketForm.reset();
+      await loadGuruOptions();
+      isEditModeInput.value = "false";
+      idPiketInput.readOnly = false;
+      hariPiketInput.disabled = false;
+      document.querySelector('.modal-header h3').innerHTML = '<i class="fas fa-calendar-check"></i> Tambah Jadwal Piket';
+      modal.classList.add('active');
+    });
+
+    // Tutup Modal
+    function closeModal() {
+      modal.classList.remove('active');
+    }
+
+    closeSpan.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // --- Load Guru Options for Dropdowns ---
+    async function loadGuruOptions() {
+      const selects = ['guru1', 'guru2', 'guru3', 'guru4', 'guru5', 'guru6', 'guru7', 'guru8'];
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('dataguru')
+          .select('nama_guru')
+          .order('nama_guru');
+
+        if (error) throw error;
+
+        selects.forEach(id => {
+          const select = document.getElementById(id);
+          const currentVal = select.value;
+          select.innerHTML = select.firstElementChild.outerHTML;
+
+          data.forEach(guru => {
+            const option = document.createElement('option');
+            option.value = guru.nama_guru;
+            option.textContent = guru.nama_guru;
+            select.appendChild(option);
+          });
+
+          if (currentVal) select.value = currentVal;
+        });
+      } catch (err) {
+        console.error('Error loading guru options:', err);
+        alert('Gagal memuat data guru');
+      }
+    }
+
+    // --- Load Data Piket ---
+    async function loadPiketData() {
+      const tableBody = document.getElementById('piketTableBody');
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="12">
+            <div class="loading"><div class="spinner"></div></div>
+          </td>
+        </tr>
+      `;
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('gurupiket')
+          .select('*')
+          .order('id', { ascending: true });
+
+        if (error) throw error;
+
+        renderPiketTable(data);
+        setupSearchFilter(data);
+
+      } catch (err) {
+        console.error('Error loading piket data:', err);
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="12" class="empty-state">
+              <i class="fas fa-exclamation-triangle"></i>
+              <h4>Gagal memuat data</h4>
+              <p>${err.message}</p>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    // --- Render Table ---
+    function renderPiketTable(data) {
+      const tableBody = document.getElementById('piketTableBody');
+
+      if (!data || data.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="12" class="empty-state">
+              <i class="fas fa-calendar-times"></i>
+              <h4>Belum ada data guru piket</h4>
+              <p>Klik "Tambah Guru Piket" untuk menambahkan data</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tableBody.innerHTML = '';
+
+      data.forEach((piket, index) => {
+        const hari = piket.hari || 'TIDAK DITENTUKAN';
+        const hariClass = getHariClass(hari);
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td><span class="badge-id">${piket.id}</span></td>
+          <td><span class="badge-hari ${hariClass}">${hari}</span></td>
+          <td><div class="guru-name"><i class="fas fa-user-tie guru-icon"></i><span>${piket.piket1 || '-'}</span></div></td>
+          <td><div class="guru-name"><i class="fas fa-user guru-icon"></i><span>${piket.piket2 || '-'}</span></div></td>
+          <td><div class="guru-name"><i class="fas fa-user guru-icon"></i><span>${piket.piket3 || '-'}</span></div></td>
+          <td><div class="guru-name"><i class="fas fa-user guru-icon"></i><span>${piket.piket4 || '-'}</span></div></td>
+          <td><div class="guru-name"><i class="fas fa-user guru-icon"></i><span>${piket.piket5 || '-'}</span></div></td>
+          <td><div class="guru-name"><i class="fas fa-user guru-icon"></i><span>${piket.piket6 || '-'}</span></div></td>
+          <td><div class="guru-name"><i class="fas fa-user guru-icon"></i><span>${piket.piket7 || '-'}</span></div></td>
+          <td><div class="guru-name"><i class="fas fa-user guru-icon"></i><span>${piket.piket8 || '-'}</span></div></td>
+          <td>
+            <div class="action-buttons">
+              <button class="btn-action btn-edit" onclick="editPiket('${escapeSingleQuote(piket.id)}', '${escapeSingleQuote(piket.hari || '')}', '${escapeSingleQuote(piket.piket1 || '')}', '${escapeSingleQuote(piket.piket2 || '')}', '${escapeSingleQuote(piket.piket3 || '')}', '${escapeSingleQuote(piket.piket4 || '')}', '${escapeSingleQuote(piket.piket5 || '')}', '${escapeSingleQuote(piket.piket6 || '')}', '${escapeSingleQuote(piket.piket7 || '')}', '${escapeSingleQuote(piket.piket8 || '')}')" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn-action btn-delete" onclick="deletePiket('${escapeSingleQuote(piket.id)}')" title="Hapus">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // --- Helper Functions ---
+    function escapeSingleQuote(str) {
+      return str ? str.replace(/'/g, "\\'") : '';
+    }
+
+    function getHariClass(hari) {
+      const hariUpper = hari.toUpperCase();
+      switch (hariUpper) {
+        case 'SENIN': return 'badge-senin';
+        case 'SELASA': return 'badge-selasa';
+        case 'RABU': return 'badge-rabu';
+        case 'KAMIS': return 'badge-kamis';
+        case 'JUMAT': return 'badge-jumat';
+        case 'SABTU': return 'badge-sabtu';
+        case 'MINGGU': return 'badge-minggu';
+        default: return 'badge-senin';
+      }
+    }
+
+    // --- Search and Filter Functionality ---
+    let allPiketData = [];
+
+    function setupSearchFilter(data) {
+      allPiketData = data;
+
+      const searchInput = document.getElementById('searchInput');
+      const filterHari = document.getElementById('filterHari');
+
+      const filterData = () => {
+        let filtered = [...allPiketData];
+
+        const searchTerm = searchInput.value.toLowerCase();
+        if (searchTerm) {
+          filtered = filtered.filter(piket =>
+            piket.id.toLowerCase().includes(searchTerm) ||
+            (piket.hari && piket.hari.toLowerCase().includes(searchTerm)) ||
+            (piket.piket1 && piket.piket1.toLowerCase().includes(searchTerm)) ||
+            (piket.piket2 && piket.piket2.toLowerCase().includes(searchTerm)) ||
+            (piket.piket3 && piket.piket3.toLowerCase().includes(searchTerm)) ||
+            (piket.piket4 && piket.piket4.toLowerCase().includes(searchTerm)) ||
+            (piket.piket5 && piket.piket5.toLowerCase().includes(searchTerm)) ||
+            (piket.piket6 && piket.piket6.toLowerCase().includes(searchTerm)) ||
+            (piket.piket7 && piket.piket7.toLowerCase().includes(searchTerm)) ||
+            (piket.piket8 && piket.piket8.toLowerCase().includes(searchTerm))
+          );
+        }
+
+        const hariFilter = filterHari.value;
+        if (hariFilter) {
+          filtered = filtered.filter(piket =>
+            piket.hari && piket.hari.toUpperCase() === hariFilter.toUpperCase()
+          );
+        }
+
+        renderPiketTable(filtered);
+      };
+
+      searchInput.addEventListener('input', filterData);
+      filterHari.addEventListener('change', filterData);
+    }
+
+    // --- Edit & Delete Functions ---
+    window.editPiket = async function (id, hari, g1, g2, g3, g4, g5, g6, g7, g8) {
+      await loadGuruOptions();
+
+      idPiketInput.value = id;
+      hariPiketInput.value = hari || '';
+      document.getElementById('guru1').value = g1 || '';
+      document.getElementById('guru2').value = g2 || '';
+      document.getElementById('guru3').value = g3 || '';
+      document.getElementById('guru4').value = g4 || '';
+      document.getElementById('guru5').value = g5 || '';
+      document.getElementById('guru6').value = g6 || '';
+      document.getElementById('guru7').value = g7 || '';
+      document.getElementById('guru8').value = g8 || '';
+
+      isEditModeInput.value = "true";
+      originalIdInput.value = id;
+      idPiketInput.readOnly = true;
+      hariPiketInput.disabled = true;
+
+      document.querySelector('.modal-header h3').innerHTML = '<i class="fas fa-edit"></i> Edit Jadwal Piket';
+      modal.classList.add('active');
+    }
+
+    window.deletePiket = async function (id) {
+      if (!confirm('Apakah Anda yakin ingin menghapus data piket ini?')) return;
+
+      try {
+        const { error } = await supabaseClient
+          .from('gurupiket')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+
+        loadPiketData();
+        alert('Data piket berhasil dihapus');
+      } catch (err) {
+        alert('Gagal menghapus data: ' + err.message);
+      }
+    }
+
+    // --- Handle Save Button Click ---
+    saveBtn.addEventListener('click', async () => {
+      const isEditMode = isEditModeInput.value === "true";
+      const idPiket = idPiketInput.value.trim();
+      const hari = hariPiketInput.value;
+      const guru1 = document.getElementById('guru1').value;
+      const guru2 = document.getElementById('guru2').value;
+      const guru3 = document.getElementById('guru3').value;
+      const guru4 = document.getElementById('guru4').value;
+      const guru5 = document.getElementById('guru5').value;
+      const guru6 = document.getElementById('guru6').value;
+      const guru7 = document.getElementById('guru7').value;
+      const guru8 = document.getElementById('guru8').value;
+
+      if (!idPiket) { alert('ID Guru Piket harus diisi'); return; }
+      if (!hari) { alert('Hari harus dipilih'); return; }
+      if (!guru1) { alert('Guru Piket 1 harus dipilih'); return; }
+
+      const formData = {
+        id: idPiket,
+        hari: hari,
+        piket1: guru1,
+        piket2: guru2 || null,
+        piket3: guru3 || null,
+        piket4: guru4 || null,
+        piket5: guru5 || null,
+        piket6: guru6 || null,
+        piket7: guru7 || null,
+        piket8: guru8 || null
+      };
+
+      const originalText = saveBtn.innerHTML;
+      saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+      saveBtn.disabled = true;
+
+      try {
+        if (isEditMode) {
+          const { error } = await supabaseClient
+            .from('gurupiket')
+            .update(formData)
+            .eq('id', originalIdInput.value);
+
+          if (error) throw error;
+        } else {
+          const { data: existing } = await supabaseClient
+            .from('gurupiket')
+            .select('id')
+            .eq('id', idPiket)
+            .single();
+
+          if (existing) {
+            alert('ID Guru Piket sudah ada. Silakan gunakan ID lain.');
+            return;
+          }
+
+          const { error } = await supabaseClient
+            .from('gurupiket')
+            .insert([formData]);
+
+          if (error) throw error;
+        }
+
+        closeModal();
+        loadPiketData();
+        alert(`Data berhasil ${isEditMode ? 'diperbarui' : 'disimpan'}`);
+
+      } catch (err) {
+        console.error('Error saving data:', err);
+        alert('Error: ' + err.message);
+      } finally {
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+      }
+    });
+
+    // --- Export PDF Logic ---
+    document.getElementById('exportPdfBtn').addEventListener('click', async () => {
+      try {
+        const { data } = await supabaseClient
+          .from('gurupiket')
+          .select('*')
+          .order('id');
+
+        if (!data || data.length === 0) {
+          alert('Tidak ada data untuk diexport');
+          return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let yPos = 20;
+
+        if (schoolData.kop_sekolah) {
+          try {
+            const response = await fetch(schoolData.kop_sekolah);
+            const blob = await response.blob();
+            const base64data = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+
+            const imgProps = doc.getImageProperties(base64data);
+            const pdfWidth = pageWidth - 20;
+            const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            doc.addImage(base64data, 'PNG', 10, 10, pdfWidth, imgHeight);
+            yPos = 10 + imgHeight + 10;
+          } catch (err) {
+            console.error("Gagal memuat KOP Sekolah:", err);
+          }
+        }
+
+        doc.setFontSize(18);
+        doc.setTextColor(40, 40, 40);
+        doc.text("LAPORAN DATA GURU PIKET", pageWidth / 2, yPos, { align: 'center' });
+        yPos += 8;
+
+        const schoolName = schoolData.nama_sekolah || document.querySelector('.navbar-brand span:last-child').textContent || 'SMK Negeri 1 Simpang Teritip';
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text(schoolName, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 8;
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        doc.setFontSize(10);
+        doc.text(`Dicetak pada: ${dateStr}`, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 10;
+
+        const tableData = data.map((piket, index) => [
+          index + 1,
+          piket.id,
+          piket.hari || '-',
+          piket.piket1 || '-',
+          piket.piket2 || '-',
+          piket.piket3 || '-',
+          piket.piket4 || '-',
+          piket.piket5 || '-',
+          piket.piket6 || '-',
+          piket.piket7 || '-',
+          piket.piket8 || '-'
+        ]);
+
+        doc.autoTable({
+          head: [['No', 'ID Guru Piket', 'Hari', 'Guru Piket 1', 'Guru Piket 2', 'Guru Piket 3', 'Guru Piket 4', 'Guru Piket 5', 'Guru Piket 6', 'Guru Piket 7', 'Guru Piket 8']],
+          body: tableData,
+          startY: yPos,
+          theme: 'grid',
+          styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+          headStyles: { fillColor: [32, 68, 58], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+          alternateRowStyles: { fillColor: [251, 246, 236] },
+          margin: { top: 45 }
+        });
+
+        const finalY = doc.lastAutoTable.finalY || yPos;
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Total Data: ${data.length}`, 14, finalY + 10);
+
+        const fileName = `Data_Guru_Piket_${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}.pdf`;
+        doc.save(fileName);
+
+      } catch (err) {
+        console.error('Error exporting PDF:', err);
+        alert('Gagal membuat PDF: ' + err.message);
+      }
+    });
+
+    // --- Auto-generate ID based on selected day ---
+    hariPiketInput.addEventListener('change', async function () {
+      if (isEditModeInput.value === "true") return;
+
+      const hari = this.value;
+      if (!hari) return;
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('gurupiket')
+          .select('id')
+          .ilike('id', `%${hari}%`);
+
+        if (error) throw error;
+
+        let nextNumber = 1;
+        if (data && data.length > 0) {
+          const numbers = data.map(item => {
+            const match = item.id.match(/\d+$/);
+            return match ? parseInt(match[0]) : 0;
+          });
+          nextNumber = Math.max(...numbers) + 1;
+        }
+
+        const newId = `PIKET-${hari.toUpperCase()}-${nextNumber.toString().padStart(2, '0')}`;
+        idPiketInput.value = newId;
+
+      } catch (err) {
+        console.error('Error generating ID:', err);
+      }
+    });
+
+    // --- Initialize on page load ---
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPiketData();
+    });
+  </script>
+</body>
+</html>

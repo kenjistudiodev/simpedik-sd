@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIMPEDIK · Wali Kelas</title>
+<meta name="description" content="Data Wali Kelas — Sistem Informasi Pendidikan Sekolah.">
+
+<!-- Font Awesome (ikon menu) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Google Fonts (sama dengan tema dahsboardadmin.html) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+
+<!-- Supabase JS SDK -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- jsPDF & AutoTable for PDF Export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  /* ============================================================
+     SIMPEDIK — Design tokens (disamakan dengan dahsboardadmin.html)
+     Tema: kertas buku tulis sekolah (garis biru + margin merah)
+     ============================================================ */
+  :root{
+    --paper:        #c29a4f;
+    --paper-card:   #FFFEFB;
+    --rule-blue:    #B8D0E8;
+    --margin-red:   #C1503B;
+    --margin-red-soft: #E7A99A;
+    --ink:          #1C3357;
+    --ink-soft:     #52658A;
+    --ink-faint:    #8A99B8;
+    --gold:         #E3A23C;
+    --gold-deep:    #B87A22;
+    --green-deep:   #20443A;
+    --green-deep-2: #163229;
+    --danger:       #C1503B;
+
+    --font-display: 'Baloo 2', system-ui, sans-serif;
+    --font-body:    'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-hand:    'Caveat', cursive;
+
+    --radius-lg: 22px;
+    --radius-md: 14px;
+    --radius-sm: 9px;
+
+    --shadow-card: 0 18px 40px -14px rgba(28,51,87,0.28), 0 2px 8px rgba(28,51,87,0.06);
+    --shadow-soft: 0 8px 20px -10px rgba(28,51,87,0.22);
+
+    --header-height: 64px;
+    --primary-color: var(--gold-deep);
+    --secondary-color: var(--margin-red);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+  img{ max-width:100%; display:block; }
+  a{ color:inherit; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- Background: kertas buku tulis ---------- */
+  .notebook-bg{
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    background-image:
+      linear-gradient(180deg, rgba(251,247,239,0.92) 0%, rgba(251,247,239,0.86) 45%, rgba(251,247,239,0.94) 100%),
+      url('assets/bg1.jpeg');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-color: var(--paper);
+    background-attachment:fixed;
+  }
+  .notebook-bg::before{
+    content:"";
+    position:absolute;
+    top:0; bottom:0;
+    left:clamp(28px, 8vw, 96px);
+    width:2px;
+    background:var(--margin-red-soft);
+    opacity:0.5;
+  }
+  @media (max-width:768px), (hover:none){
+    .notebook-bg{ background-attachment:scroll; }
+    .notebook-bg::before{ left:22px; }
+  }
+
+  /* --- Navbar --- */
+  .navbar {
+    height: var(--header-height);
+    background-color: var(--paper-card);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 clamp(14px, 3vw, 28px);
+    box-shadow: var(--shadow-soft);
+    border-bottom: 4px solid var(--gold);
+    z-index: 2500;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--ink);
+    min-width: 0;
+  }
+
+  .navbar-brand .logo-badge{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:var(--green-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    overflow:hidden;
+    box-shadow:var(--shadow-soft);
+    border:2px solid #fff;
+  }
+  .navbar-brand .logo-badge img{
+    width:100%; height:100%; object-fit:contain;
+  }
+
+  .navbar-brand span {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .navbar-dashboard-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--green-deep), var(--green-deep-2));
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.88rem;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 8px 18px -8px rgba(32,68,58,.6);
+    transition: transform .12s ease, filter .15s ease;
+    flex-shrink: 0;
+  }
+  .navbar-dashboard-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+  /* --- Main Content --- */
+  .main-content {
+    margin-top: var(--header-height);
+    padding: clamp(16px, 3vw, 28px);
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-card {
+    background: var(--paper-card);
+    padding: 22px clamp(18px, 3vw, 26px) 24px;
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--gold);
+    margin-bottom: 20px;
+    overflow: visible;
+  }
+
+  .dashboard-card h2{
+    font-family: var(--font-display);
+    color: var(--ink);
+    font-size: 1.4rem;
+    margin: 0;
+  }
+  .dashboard-card > p{ color: var(--ink-soft); margin-top: 10px; }
+
+  /* Footer */
+  .main-footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+  .main-footer .tagline{
+    font-family: var(--font-hand);
+    font-size: 1.35rem;
+    color: var(--gold-deep);
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .main-footer p{ margin: 2px 0; }
+
+  @media (max-width: 768px) {
+    .navbar-brand span { font-size: 0.92rem; max-width: 40vw; }
+    .main-content { padding-left: 10px; padding-right: 10px; }
+  }
+
+  /* --- Tombol --- */
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform .12s ease, filter .15s ease, background-color .15s ease;
+    font-size: 0.88rem;
+    color: white;
+    box-shadow: var(--shadow-soft);
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn-primary { background: linear-gradient(135deg, var(--green-deep), var(--green-deep-2)); }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-danger { background: linear-gradient(135deg, var(--margin-red), #8f3a2a); }
+  .btn-danger:hover { filter: brightness(1.1); }
+  .btn-secondary { background: #EFE7D6; color: var(--ink); box-shadow:none; }
+  .btn-secondary:hover { background: #E5DAC2; }
+
+  .toolbar-wrap {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .table-responsive { overflow-x: auto; }
+  .custom-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+  .custom-table th, .custom-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #EFE7D6; }
+  .custom-table th { background-color: #FBF6EC; color: var(--ink-soft); font-weight: 700; font-family: var(--font-body); }
+  .custom-table tr:hover { background-color: #FBF6EC; }
+  .custom-table td button{ font-size: 1rem; }
+
+  /* --- Modal Styles --- */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 3000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(28,51,87,0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal.active { display: flex; }
+  .modal-content {
+    background: var(--paper-card);
+    width: 100%;
+    max-width: 500px;
+    padding: 26px clamp(18px, 3vw, 28px) 24px;
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--gold);
+    animation: slideDown 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  @keyframes slideDown { from { transform: translateY(-40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px dashed var(--rule-blue); padding-bottom: 12px; }
+  .modal-header h3 { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: 1.15rem; }
+  .close-modal {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: #FBEAE6;
+    color: var(--margin-red);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+  }
+  .close-modal:hover { background: #F5D6CF; }
+
+  .form-group { margin-bottom: 15px; }
+  .form-group label { display: block; margin-bottom: 8px; color: var(--ink-soft); font-size: 0.88rem; font-weight: 600; }
+  .form-group input, .form-group select {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--rule-blue);
+    border-radius: var(--radius-sm);
+    font-size: 0.92rem;
+    font-family: var(--font-body);
+    color: var(--ink);
+    background: #FCFAF4;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--gold-deep); box-shadow: 0 0 0 3px rgba(227,162,60,0.18); }
+  .form-group input[readonly] { background-color: #EFE7D6; cursor: not-allowed; color: var(--ink-soft); }
+  .form-group select:disabled { background-color: #EFE7D6; cursor: not-allowed; color: var(--ink-soft); }
+
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+</style>
+</head>
+<body>
+
+<div class="notebook-bg"></div>
+
+<!-- Navbar -->
+<nav class="navbar">
+    <a href="dahsboardadmin.html" class="navbar-brand">
+        <span class="logo-badge"><img src="" alt="Logo Sekolah" style="display: none;"></span>
+        <span></span>
+    </a>
+    <a href="dahsboardadmin.html" class="navbar-dashboard-btn">
+        <i class="fas fa-th-large"></i> Dashboard
+    </a>
+</nav>
+
+<!-- Main Content Area -->
+<main class="main-content">
+    <div class="dashboard-card">
+        <h2>Data <span style="color: var(--margin-red);">Wali Kelas</span></h2>
+        <p>Halaman untuk mengelola data wali kelas.</p>
+    </div>
+
+    <!-- Container Tabel Data Wali Kelas -->
+    <div class="dashboard-card">
+        <div class="toolbar-wrap">
+            <button class="btn btn-primary" id="addWalikelasBtn"><i class="fas fa-plus"></i> Tambah Walikelas</button>
+            <button class="btn btn-danger" id="exportPdfBtn"><i class="fas fa-file-pdf"></i> Export Pdf</button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>NIP</th>
+                        <th>Nama Walikelas</th>
+                        <th>Kelas</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--ink-faint); padding: 20px;">Belum ada data wali kelas.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <p class="tagline">Cerdas, Kreatif, Berkarakter</p>
+        <p>&copy; 2026 SMKN 1 SIMPANG TERITIP.</p>
+        <p>CopyRight Kenji Studio Developer.</p>
+    </footer>
+</main>
+
+<!-- Modal Tambah Walikelas -->
+<div id="walikelasModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Tambah Wali Kelas</h3>
+            <span class="close-modal">&times;</span>
+        </div>
+        <form id="walikelasForm">
+            <input type="hidden" id="walikelasId">
+            <input type="hidden" id="isEditMode" value="false">
+            <div class="form-group">
+                <label for="namaWalikelas">Nama Walikelas</label>
+                <select id="namaWalikelas" name="namaWalikelas" required>
+                    <option value="">Pilih Guru</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="nip">NIP</label>
+                <input type="text" id="nip" name="nip" readonly placeholder="Otomatis terisi">
+            </div>
+            <div class="form-group">
+                <label for="kelas">Kelas</label>
+                <select id="kelas" name="kelas" required>
+                     <option value="">Pilih Kelas</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary cancel-btn">Batal</button>
+                <button type="submit" class="btn btn-primary">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- Supabase Integration ---
+    const supabaseUrl = 'https://ovaekdszrtrqyfxubjzw.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YWVrZHN6cnRycXlmeHVianp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNDk1MjAsImV4cCI6MjA5OTcyNTUyMH0.UBbE3tgpaVLHWoZX7h30KlrLSOVHTheZw7xvMLOrD_E';
+
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    let schoolData = {}; // Menyimpan data sekolah untuk keperluan export
+
+    async function loadSchoolIdentity() {
+        try {
+            const { data, error } = await supabaseClient
+                .from('identitassekolah')
+                .select('nama_sekolah, logo, kop_sekolah')
+                .limit(1)
+                .single();
+
+            if (data) {
+                schoolData = data; // Simpan data ke variabel global
+                if (data.nama_sekolah) {
+                    document.querySelector('.navbar-brand span:last-child').textContent = data.nama_sekolah;
+                }
+                if (data.logo) {
+                    const img = document.querySelector('.navbar-brand img');
+                    img.src = data.logo;
+                    img.style.display = 'block';
+                }
+            }
+        } catch (err) {
+            console.error("Error loading school identity:", err);
+        }
+    }
+    document.addEventListener('DOMContentLoaded', loadSchoolIdentity);
+    document.addEventListener('DOMContentLoaded', loadWalikelasData);
+
+    // --- Modal Logic ---
+    const modal = document.getElementById('walikelasModal');
+    const addBtn = document.getElementById('addWalikelasBtn');
+    const closeSpan = document.querySelector('.close-modal');
+    const cancelBtn = document.querySelector('.cancel-btn');
+    const walikelasForm = document.getElementById('walikelasForm');
+    const namaWalikelasSelect = document.getElementById('namaWalikelas');
+    const nipInput = document.getElementById('nip');
+    const kelasSelect = document.getElementById('kelas');
+    const isEditModeInput = document.getElementById('isEditMode');
+
+    // Buka Modal
+    addBtn.addEventListener('click', () => {
+        walikelasForm.reset();
+        loadGuruOptions();
+        loadKelasOptions();
+        isEditModeInput.value = "false";
+        namaWalikelasSelect.disabled = false; // Enable saat tambah baru
+        document.querySelector('.modal-header h3').textContent = "Tambah Wali Kelas";
+        modal.classList.add('active');
+    });
+
+    // Tutup Modal
+    function closeModal() {
+        modal.classList.remove('active');
+    }
+
+    closeSpan.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    // --- Fetch Data untuk Dropdown ---
+    let guruDataList = [];
+
+    async function loadGuruOptions() {
+        namaWalikelasSelect.innerHTML = '<option value="">Memuat data...</option>';
+        try {
+            const { data, error } = await supabaseClient
+                .from('dataguru')
+                .select('id_guru, nama_guru, nip::text')
+                .order('nama_guru');
+
+            if (error) throw error;
+
+            guruDataList = data;
+            namaWalikelasSelect.innerHTML = '<option value="">Pilih Guru</option>';
+
+            data.forEach(guru => {
+                const option = document.createElement('option');
+                option.value = guru.nama_guru;
+                option.textContent = guru.nama_guru;
+                namaWalikelasSelect.appendChild(option);
+            });
+        } catch (err) {
+            console.error('Error loading guru:', err);
+            namaWalikelasSelect.innerHTML = '<option value="">Gagal memuat data</option>';
+        }
+    }
+
+    async function loadKelasOptions() {
+        kelasSelect.innerHTML = '<option value="">Memuat data...</option>';
+        try {
+            const { data, error } = await supabaseClient
+                .from('rombel')
+                .select('nama_kelas')
+                .order('nama_kelas');
+
+            if (error) throw error;
+
+            kelasSelect.innerHTML = '<option value="">Pilih Kelas</option>';
+
+            data.forEach(rombel => {
+                const option = document.createElement('option');
+                option.value = rombel.nama_kelas;
+                option.textContent = rombel.nama_kelas;
+                kelasSelect.appendChild(option);
+            });
+        } catch (err) {
+            console.error('Error loading kelas:', err);
+            kelasSelect.innerHTML = '<option value="">Gagal memuat data</option>';
+        }
+    }
+
+    // --- Auto Fill NIP ---
+    namaWalikelasSelect.addEventListener('change', function() {
+        const selectedGuru = guruDataList.find(g => g.nama_guru === this.value);
+        if (selectedGuru) {
+            nipInput.value = selectedGuru.nip || '';
+        } else {
+            nipInput.value = '';
+        }
+    });
+
+    // Variabel global untuk menyimpan data
+    let allWalikelasData = [];
+
+    // --- Load Data Wali Kelas ---
+    async function loadWalikelasData() {
+        const tableBody = document.querySelector('.custom-table tbody');
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Memuat data...</td></tr>';
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('walikelas')
+                .select('nip::text, nama_guru, kelas')
+                .order('nama_guru', { ascending: true });
+
+            if (error) throw error;
+
+            allWalikelasData = data; // Simpan data ke variabel global
+            tableBody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--ink-faint); padding: 20px;">Belum ada data wali kelas.</td></tr>';
+                return;
+            }
+
+            data.forEach((wali, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${wali.nip}</td>
+                    <td>${wali.nama_guru}</td>
+                    <td>${wali.kelas}</td>
+                    <td>
+                        <button onclick="editWalikelas('${wali.nip}')" style="background:none; border:none; color:#3E5C8A; cursor:pointer;" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteWalikelas('${wali.nip}')" style="background:none; border:none; color:var(--margin-red); cursor:pointer; margin-left:10px;" title="Hapus"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        } catch (err) {
+            console.error('Error loading walikelas data:', err);
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--margin-red);">Gagal memuat data: ${err.message}</td></tr>`;
+        }
+    }
+
+    // --- Fungsi Edit Walikelas ---
+    window.editWalikelas = async function(nip) {
+        const wali = allWalikelasData.find(w => w.nip == nip);
+        if (wali) {
+            // Pastikan option terload dulu
+            await loadGuruOptions();
+            await loadKelasOptions();
+
+            // Isi form
+            namaWalikelasSelect.value = wali.nama_guru;
+            nipInput.value = wali.nip;
+            kelasSelect.value = wali.kelas;
+
+            // Set Mode Edit
+            isEditModeInput.value = "true";
+            // Disable nama guru karena NIP adalah Primary Key (Identitas tidak boleh berubah saat edit, hanya kelas)
+            namaWalikelasSelect.disabled = true;
+            document.querySelector('.modal-header h3').textContent = "Edit Wali Kelas";
+
+            modal.classList.add('active');
+        }
+    }
+
+    // --- Fungsi Hapus Walikelas ---
+    window.deleteWalikelas = async function(nip) {
+        if (confirm(`Apakah Anda yakin ingin menghapus data wali kelas dengan NIP: ${nip}?`)) {
+            try {
+                const { error } = await supabaseClient
+                    .from('walikelas')
+                    .delete()
+                    .eq('nip', nip);
+
+                if (error) throw error;
+
+                alert('Data berhasil dihapus.');
+                loadWalikelasData(); // Refresh tabel
+            } catch (err) {
+                console.error('Gagal menghapus:', err);
+                alert('Gagal menghapus data: ' + err.message);
+            }
+        }
+    }
+
+    // Handle Form Submit (Simpan Data Wali Kelas)
+    walikelasForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const submitBtn = walikelasForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Menyimpan...';
+        submitBtn.disabled = true;
+
+        try {
+            const isEdit = isEditModeInput.value === "true";
+            const nipVal = document.getElementById('nip').value;
+            const namaVal = document.getElementById('namaWalikelas').value;
+            const kelasVal = document.getElementById('kelas').value;
+
+            let result;
+            if (isEdit) {
+                // Update Data (Hanya update kelas, karena NIP/Nama dikunci saat edit)
+                result = await supabaseClient
+                    .from('walikelas')
+                    .update({ kelas: kelasVal })
+                    .eq('nip', nipVal);
+            } else {
+                // Insert Data Baru
+                result = await supabaseClient
+                    .from('walikelas')
+                    .insert([{ nip: nipVal, nama_guru: namaVal, kelas: kelasVal }]);
+            }
+
+            if (result.error) throw result.error;
+
+            alert('Data Wali Kelas berhasil disimpan!');
+            closeModal();
+            loadWalikelasData(); // Refresh tabel
+        } catch (err) {
+            console.error(err);
+            alert('Terjadi kesalahan: ' + err.message);
+        } finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    });
+
+    // --- Export PDF Logic ---
+    document.getElementById('exportPdfBtn').addEventListener('click', async () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let yPos = 20;
+
+        // Tambahkan KOP Sekolah jika ada
+        if (schoolData.kop_sekolah) {
+            try {
+                const response = await fetch(schoolData.kop_sekolah);
+                const blob = await response.blob();
+                const base64data = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+
+                const imgProps = doc.getImageProperties(base64data);
+                const pdfWidth = pageWidth - 20; // Margin kiri kanan 10
+                const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                doc.addImage(base64data, 'PNG', 10, 10, pdfWidth, imgHeight);
+                yPos = 10 + imgHeight + 10; // Update posisi Y di bawah gambar
+            } catch (err) {
+                console.error("Gagal memuat KOP Sekolah:", err);
+            }
+        }
+
+        // Judul Dokumen
+        doc.setFontSize(18);
+        doc.text("Laporan Data Wali Kelas", pageWidth / 2, yPos, { align: 'center' });
+        yPos += 8;
+
+        // Nama Sekolah (ambil dari navbar)
+        const schoolName = schoolData.nama_sekolah || document.querySelector('.navbar-brand span:last-child').textContent || 'SMK Negeri 1 Simpang Teritip';
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+        doc.text(schoolName, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 10;
+
+        // Persiapkan Data Tabel
+        const tableRows = [];
+        const rows = document.querySelectorAll('.custom-table tbody tr');
+
+        rows.forEach((row) => {
+            const cells = row.querySelectorAll('td');
+            // Pastikan bukan baris loading atau kosong (cek jika ada kolom data > 1)
+            if (cells.length > 1) {
+                const rowData = [
+                    cells[0].innerText, // No
+                    cells[1].innerText, // NIP
+                    cells[2].innerText, // Nama Walikelas
+                    cells[3].innerText  // Kelas
+                ];
+                tableRows.push(rowData);
+            }
+        });
+
+        // Generate Tabel PDF
+        doc.autoTable({
+            head: [['No', 'NIP', 'Nama Walikelas', 'Kelas']],
+            body: tableRows,
+            startY: yPos,
+            theme: 'grid',
+            styles: { fontSize: 10 },
+            headStyles: { fillColor: [184, 122, 34] } // Warna gold-deep tema
+        });
+
+        // Simpan File
+        doc.save('Data_Wali_Kelas.pdf');
+    });
+</script>
+</body>
+</html>

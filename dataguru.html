@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIMPEDIK-SD · Data Guru</title>
+<meta name="description" content="Kelola data guru untuk SIMPEDIK-SD.">
+<!-- Supabase JS SDK -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- jsPDF & AutoTable untuk Export PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  /* ============================================================
+     SIMPEDIK-SD — Design tokens
+     Tema: kertas buku tulis sekolah (sama seperti identitassekolah.html)
+     ============================================================ */
+  :root{
+    --paper:        #c29a4f;
+    --paper-card:   #FFFEFB;
+    --card-alt:     #FBF3E2;
+    --rule-blue:    #B8D0E8;
+    --margin-red:   #C1503B;
+    --margin-red-soft: #E7A99A;
+    --ink:          #1C3357;
+    --ink-soft:     #52658A;
+    --ink-faint:    #8A99B8;
+    --gold:         #E3A23C;
+    --gold-deep:    #B87A22;
+    --green-deep:   #20443A;
+    --green-deep-2: #163229;
+    --danger:       #C1503B;
+
+    --font-display: 'Baloo 2', system-ui, sans-serif;
+    --font-body:    'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-hand:    'Caveat', cursive;
+
+    --radius-lg: 22px;
+    --radius-md: 14px;
+    --radius-sm: 9px;
+
+    --shadow-card: 0 18px 40px -14px rgba(28,51,87,0.28), 0 2px 8px rgba(28,51,87,0.06);
+    --shadow-soft: 0 8px 20px -10px rgba(28,51,87,0.22);
+
+    --focus-ring: 3px solid #E3A23C;
+    --header-height: 68px;
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    min-height:100svh;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--paper);
+    -webkit-font-smoothing:antialiased;
+  }
+  img{ max-width:100%; display:block; }
+  button{ font-family:inherit; }
+  a{ color:inherit; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- Background halaman ---------- */
+  .notebook-bg{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    background-image:
+      linear-gradient(180deg, rgba(251,247,239,0.90) 0%, rgba(251,247,239,0.80) 45%, rgba(251,247,239,0.92) 100%),
+      url('bg1.jpeg');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-attachment:fixed;
+  }
+  .notebook-bg::before{
+    content:"";
+    position:absolute;
+    top:0; bottom:0;
+    left:clamp(28px, 8vw, 96px);
+    width:2px;
+    background:var(--margin-red-soft);
+    opacity:0.65;
+  }
+  @media (max-width:600px){ .notebook-bg::before{ left:22px; } }
+  @media (max-width:768px), (hover:none){ .notebook-bg{ background-attachment:scroll; } }
+
+  /* ---------- Navbar ---------- */
+  .navbar{
+    height:var(--header-height);
+    background:var(--paper-card);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 clamp(14px, 4vw, 28px);
+    box-shadow:var(--shadow-soft);
+    border-bottom:3px solid var(--gold);
+    position:fixed;
+    top:0; left:0; right:0;
+    z-index:1002;
+  }
+  .navbar-brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    text-decoration:none;
+    color:var(--ink);
+    min-width:0;
+  }
+  .navbar-brand img{
+    height:42px;
+    width:42px;
+    object-fit:contain;
+    border-radius:12px;
+    background:
+      linear-gradient(150deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 40%),
+      var(--paper-card);
+    border:2px solid #fff;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 -4px 8px rgba(0,0,0,0.12) inset,
+      0 8px 14px -6px rgba(28,51,87,0.35);
+    padding:5px;
+    flex-shrink:0;
+  }
+  .navbar-brand span{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(0.85rem, 2.4vw, 1.05rem);
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .btn-dashboard{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:var(--green-deep);
+    color:#fff;
+    text-decoration:none;
+    padding:10px 18px;
+    border-radius:999px;
+    font-family:var(--font-display);
+    font-size:0.85rem;
+    font-weight:700;
+    box-shadow:0 8px 16px -8px rgba(32,68,58,0.55);
+    transition:background .18s ease, transform .12s ease;
+    flex-shrink:0;
+  }
+  .btn-dashboard:hover{ background:var(--green-deep-2); transform:translateY(-1px); }
+
+  /* ---------- Main layout ---------- */
+  .main-content{
+    position:relative;
+    z-index:1;
+    margin-top:var(--header-height);
+    padding:clamp(24px, 5vw, 44px) clamp(14px, 5vw, 28px) clamp(40px, 6vw, 60px);
+  }
+  .container{
+    max-width:1100px;
+    margin:0 auto;
+    background:var(--paper-card);
+    border-radius:4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow:var(--shadow-card);
+    border-top:5px solid var(--gold);
+    overflow:hidden;
+  }
+
+  .page-header{
+    background:linear-gradient(135deg, var(--green-deep), var(--green-deep-2));
+    color:#fff;
+    padding:clamp(22px, 4vw, 30px) 24px;
+    text-align:center;
+  }
+  .page-header h1{
+    margin:0 0 6px;
+    font-family:var(--font-display);
+    font-weight:800;
+    font-size:clamp(1.25rem, 3vw, 1.6rem);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+  }
+  .page-header p{
+    margin:0;
+    opacity:0.85;
+    font-size:0.9rem;
+    font-weight:500;
+  }
+
+  .content{ padding:clamp(18px, 4vw, 32px); }
+
+  /* ---------- Message alert ---------- */
+  .message{
+    padding:12px 14px;
+    border-radius:var(--radius-sm);
+    margin-bottom:20px;
+    display:none;
+    font-size:0.88rem;
+    font-weight:600;
+  }
+  .message.success{
+    background:#E4F1EA;
+    color:var(--green-deep);
+    border:1px solid #BFE0CE;
+  }
+  .message.error{
+    background:#FBEAE6;
+    color:var(--danger);
+    border:1px solid var(--margin-red-soft);
+  }
+
+  /* ---------- Form (dipakai di dalam modal) ---------- */
+  .form-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+    gap:16px;
+  }
+  .form-group{ margin-bottom:14px; }
+  .form-group label{
+    display:block;
+    margin-bottom:6px;
+    font-weight:700;
+    font-size:0.8rem;
+    color:var(--ink);
+    letter-spacing:0.01em;
+  }
+  .required::after{ content:" *"; color:var(--margin-red); }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea{
+    width:100%;
+    font-family:var(--font-body);
+    padding:11px 13px;
+    background:#FCFBF8;
+    border:1.5px solid #DCE3EE;
+    border-radius:var(--radius-sm);
+    font-size:0.92rem;
+    color:var(--ink);
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .form-group input::placeholder,
+  .form-group textarea::placeholder{ color:var(--ink-faint); }
+  .form-group input:focus-visible,
+  .form-group select:focus-visible,
+  .form-group input:focus,
+  .form-group select:focus{
+    border-color:var(--gold);
+    box-shadow:0 0 0 4px rgba(227,162,60,0.22);
+    background:#fff;
+  }
+
+  /* ---------- File upload ---------- */
+  .file-upload-label{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:20px; border:2px dashed var(--gold); border-radius:var(--radius-md);
+    background:#FCF8EE; cursor:pointer; transition:all .2s ease; text-align:center;
+  }
+  .file-upload-label:hover{ border-color:var(--margin-red); background:#FBEFE6; }
+  .file-upload-label i{ font-size:1.8rem; color:var(--gold-deep); margin-bottom:8px; }
+  .file-upload-label span{ font-weight:700; color:var(--ink); font-size:0.88rem; }
+  .file-upload-label small{ color:var(--ink-faint); font-size:0.78rem; margin-top:4px; }
+
+  /* ---------- Actions bar & buttons ---------- */
+  .actions-bar{
+    display:flex;
+    gap:12px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+  }
+  .btn-action{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:11px 20px; border-radius:999px;
+    font-family:var(--font-display); font-weight:700; font-size:0.85rem;
+    cursor:pointer; border:none; transition:all .18s ease;
+  }
+  .btn-add{ background:var(--green-deep); color:#fff; box-shadow:0 10px 20px -8px rgba(32,68,58,.5); }
+  .btn-add:hover{ background:var(--green-deep-2); transform:translateY(-1px); }
+  .btn-export{ background:transparent; border:1.5px solid var(--margin-red); color:var(--margin-red); }
+  .btn-export:hover{ background:var(--margin-red); color:#fff; }
+
+  /* ---------- Table ---------- */
+  .table-responsive{ overflow-x:auto; border-radius:var(--radius-md); }
+  .custom-table{ width:100%; border-collapse:collapse; }
+  .custom-table th, .custom-table td{
+    padding:13px 15px; text-align:left; border-bottom:1.5px dashed var(--rule-blue);
+    font-size:0.87rem; white-space:nowrap;
+  }
+  .custom-table th{
+    background:var(--card-alt); color:var(--margin-red);
+    font-family:var(--font-display); font-weight:700; font-size:0.74rem;
+    text-transform:uppercase; letter-spacing:0.03em; border-bottom:2px solid var(--rule-blue);
+  }
+  .custom-table tbody tr:hover{ background:#FBF7EC; }
+  .guru-photo{
+    width:42px; height:42px; border-radius:50%; object-fit:cover;
+    border:2px solid #fff; box-shadow:0 2px 6px rgba(28,51,87,0.18);
+  }
+  .icon-btn{
+    background:none; border:none; cursor:pointer; font-size:1rem;
+    padding:6px 8px; border-radius:8px; transition:background .15s ease;
+  }
+  .icon-btn.edit{ color:#2F6690; }
+  .icon-btn.edit:hover{ background:#E7F0F8; }
+  .icon-btn.delete{ color:var(--margin-red); }
+  .icon-btn.delete:hover{ background:#FBEAE6; }
+
+  /* ---------- Modal ---------- */
+  .modal{
+    display:none; position:fixed; inset:0; z-index:2000;
+    background:rgba(28,51,87,0.55); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .modal.active{ display:flex; }
+  .modal-content{
+    background:var(--paper-card); width:100%; max-width:520px;
+    border-radius:4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow:var(--shadow-card); border-top:5px solid var(--gold);
+    max-height:90vh; overflow-y:auto; animation:slideDown .25s ease;
+  }
+  @keyframes slideDown{ from{ transform:translateY(-40px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+  .modal-header{
+    background:linear-gradient(135deg, var(--green-deep), var(--green-deep-2));
+    color:#fff; padding:18px 22px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .modal-header h3{
+    margin:0; font-family:var(--font-display); font-size:1.05rem; font-weight:700;
+    display:flex; align-items:center; gap:8px;
+  }
+  .close-modal{ cursor:pointer; font-size:1.3rem; color:#fff; opacity:.85; transition:opacity .15s ease; line-height:1; }
+  .close-modal:hover{ opacity:1; }
+  .modal-body-pad{ padding:22px; }
+  .modal-footer{
+    display:flex; justify-content:flex-end; gap:12px;
+    margin-top:6px; padding-top:18px; border-top:2px dashed var(--rule-blue);
+  }
+  .modal-footer button{
+    padding:11px 20px; border-radius:999px;
+    font-family:var(--font-display); font-weight:700; font-size:0.85rem;
+    cursor:pointer; border:none; display:inline-flex; align-items:center; gap:8px;
+    transition:all .18s ease;
+  }
+  .btn-save{ background:var(--green-deep); color:#fff; box-shadow:0 10px 20px -8px rgba(32,68,58,.5); }
+  .btn-save:hover:not(:disabled){ background:var(--green-deep-2); transform:translateY(-1px); }
+  .btn-cancel{ background:transparent; border:1.5px solid var(--ink-faint); color:var(--ink-soft); }
+  .btn-cancel:hover{ background:#EFEAE0; }
+  button:disabled{ opacity:0.55; cursor:not-allowed; }
+
+  .empty-state{ text-align:center; color:var(--ink-faint); padding:26px !important; white-space:normal !important; }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  footer{
+    text-align:center;
+    padding:20px;
+    color:var(--ink-faint);
+    font-size:0.78rem;
+    border-top:1px solid #EDE3CF;
+  }
+
+  /* ---------- Breakpoints ---------- */
+  @media (max-width:768px){
+    .page-header{ padding:18px; }
+    .content{ padding:16px; }
+    .form-grid{ grid-template-columns:1fr; }
+    .navbar-brand span{ max-width:38vw; }
+    .actions-bar{ flex-direction:column; }
+    .btn-action{ width:100%; justify-content:center; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="notebook-bg" aria-hidden="true"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="dahsboardadmin.html" class="navbar-brand">
+      <img src="" alt="Logo Sekolah" style="display: none;">
+      <span></span>
+    </a>
+    <a href="dahsboardadmin.html" class="btn-dashboard">
+      <i class="fas fa-home"></i> Dashboard
+    </a>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="container">
+      <div class="page-header">
+        <h1><i class="fas fa-chalkboard-teacher"></i> Data Guru</h1>
+        <p>Kelola data guru untuk disimpan ke database Supabase</p>
+      </div>
+
+      <div class="content">
+        <div id="message" class="message"></div>
+
+        <div class="actions-bar">
+          <button class="btn-action btn-add" id="addGuruBtn"><i class="fas fa-plus"></i> Tambah Guru</button>
+          <button class="btn-action btn-export" id="exportPdfBtn"><i class="fas fa-file-pdf"></i> Export Pdf</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Id Guru</th>
+                <th>Nama Guru</th>
+                <th>NIP</th>
+                <th>Mata Pelajaran</th>
+                <th>Nomor Telepon</th>
+                <th>Photo</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="7" class="empty-state">Memuat data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer>
+        &copy; <span id="year"></span> SIMPEDIK-SD · Seluruh hak cipta dilindungi
+      </footer>
+    </div>
+  </main>
+
+  <!-- Modal Tambah/Edit Guru -->
+  <div id="guruModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-user-plus"></i> <span id="guruModalTitle">Tambah Guru Baru</span></h3>
+        <span class="close-modal">&times;</span>
+      </div>
+      <div class="modal-body-pad">
+        <form id="guruForm">
+          <!-- Hidden Input untuk Mode Edit -->
+          <input type="hidden" id="isEditMode" value="false">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="idGuru" class="required">ID Guru</label>
+              <input type="text" id="idGuru" name="idGuru" placeholder="Otomatis dari NIP" required readonly>
+            </div>
+            <div class="form-group">
+              <label for="namaGuru" class="required">Nama Guru</label>
+              <input type="text" id="namaGuru" name="namaGuru" placeholder="Nama Lengkap" required>
+            </div>
+            <div class="form-group">
+              <label for="nip">NIP</label>
+              <input type="number" id="nip" name="nip" placeholder="Nomor Induk Pegawai">
+            </div>
+            <div class="form-group">
+              <label for="mapel">Mata Pelajaran</label>
+              <input type="text" id="mapel" name="mapel" placeholder="Contoh: Matematika">
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label for="telepon">Nomor Tlp/Wa</label>
+              <input type="tel" id="telepon" name="telepon" placeholder="08xxxxxxxxxx">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Upload Photo</label>
+            <input type="file" id="photoGuru" name="photoGuru" accept="image/*" hidden>
+            <label for="photoGuru" class="file-upload-label">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <span>Pilih Foto atau Tarik ke Sini</span>
+              <small>Format: JPG, PNG (Maks 2MB)</small>
+            </label>
+            <div id="fileNameDisplay" style="margin-top: 8px; font-size: 0.83rem; color: var(--ink-soft); display: none;"></div>
+            <div id="imagePreviewContainer" style="margin-top: 10px; display: none; text-align: center;">
+              <img id="imagePreview" src="" alt="Preview Foto" style="max-width: 140px; max-height: 140px; border-radius: 10px; border: 1.5px solid var(--rule-blue); padding: 5px; background:#fff;">
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel cancel-btn">Batal</button>
+            <button type="submit" class="btn-save"><i class="fas fa-save"></i> Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // --- Supabase Integration ---
+    const supabaseUrl = 'https://ovaekdszrtrqyfxubjzw.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YWVrZHN6cnRycXlmeHVianp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNDk1MjAsImV4cCI6MjA5OTcyNTUyMH0.UBbE3tgpaVLHWoZX7h30KlrLSOVHTheZw7xvMLOrD_E';
+
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    let schoolData = {}; // Menyimpan data sekolah untuk keperluan export & navbar
+
+    async function loadSchoolIdentity() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('identitassekolah')
+          .select('nama_sekolah, logo, kop_sekolah')
+          .limit(1)
+          .single();
+
+        if (data) {
+          schoolData = data;
+          if (data.nama_sekolah) {
+            document.querySelector('.navbar-brand span').textContent = data.nama_sekolah;
+          }
+          if (data.logo) {
+            const img = document.querySelector('.navbar-brand img');
+            img.src = data.logo;
+            img.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error('Error loading school identity:', err);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', loadSchoolIdentity);
+    document.addEventListener('DOMContentLoaded', loadGuruData);
+
+    // --- Message Helper ---
+    const messageDiv = document.getElementById('message');
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = `message ${type}`;
+      messageDiv.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => { messageDiv.style.display = 'none'; }, 5000);
+    }
+
+    // --- Modal Logic ---
+    const modal = document.getElementById('guruModal');
+    const addBtn = document.getElementById('addGuruBtn');
+    const closeSpan = document.querySelector('.close-modal');
+    const cancelBtn = document.querySelector('.cancel-btn');
+    const guruForm = document.getElementById('guruForm');
+    const photoInput = document.getElementById('photoGuru');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const nipInput = document.getElementById('nip');
+    const idGuruInput = document.getElementById('idGuru');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const isEditModeInput = document.getElementById('isEditMode');
+    const guruModalTitle = document.getElementById('guruModalTitle');
+
+    // Buka Modal (Tambah)
+    addBtn.addEventListener('click', () => {
+      guruForm.reset();
+      isEditModeInput.value = "false";
+      idGuruInput.readOnly = true; // ID selalu otomatis dari NIP
+      guruModalTitle.textContent = "Tambah Guru Baru";
+      fileNameDisplay.style.display = 'none';
+      imagePreviewContainer.style.display = 'none';
+      imagePreview.src = '';
+      modal.classList.add('active');
+    });
+
+    // Tutup Modal
+    function closeModal() {
+      modal.classList.remove('active');
+      guruForm.reset();
+      fileNameDisplay.style.display = 'none';
+      imagePreviewContainer.style.display = 'none';
+      imagePreview.src = '';
+      isEditModeInput.value = "false";
+      idGuruInput.readOnly = true;
+    }
+
+    closeSpan.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // File Upload Display Name & Preview
+    photoInput.addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+        fileNameDisplay.textContent = 'File terpilih: ' + this.files[0].name;
+        fileNameDisplay.style.display = 'block';
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          imagePreview.src = e.target.result;
+          imagePreviewContainer.style.display = 'block';
+        }
+        reader.readAsDataURL(this.files[0]);
+      }
+    });
+
+    // --- Auto Generate ID Guru ---
+    // Format: ID-[NIP]-[4 Random].[Nomor Urut]
+    async function generateIdGuru() {
+      const nip = nipInput.value.trim();
+      if (!nip) return;
+
+      try {
+        const { count, error } = await supabaseClient
+          .from('dataguru')
+          .select('*', { count: 'exact', head: true });
+
+        if (error) throw error;
+
+        const sequence = (count || 0) + 1;
+        const random4 = Math.floor(1000 + Math.random() * 9000);
+
+        idGuruInput.value = `ID-${nip}-${random4}.${sequence}`;
+      } catch (err) {
+        console.error('Gagal generate ID Guru:', err);
+      }
+    }
+
+    nipInput.addEventListener('blur', generateIdGuru);
+
+    // Variabel global untuk menyimpan data guru agar mudah diakses saat edit
+    let allGuruData = [];
+
+    // --- Load Data Guru ---
+    async function loadGuruData() {
+      const tableBody = document.querySelector('.custom-table tbody');
+      tableBody.innerHTML = '<tr><td colspan="7" class="empty-state">Memuat data...</td></tr>';
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('dataguru')
+          .select('id_guru, nama_guru, nip::text, mapel, tlp, photo')
+          .order('nama_guru', { ascending: true });
+
+        if (error) throw error;
+
+        allGuruData = data;
+        tableBody.innerHTML = '';
+
+        if (!data || data.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="7" class="empty-state">Belum ada data guru.</td></tr>';
+          return;
+        }
+
+        data.forEach((guru) => {
+          const row = document.createElement('tr');
+          const photoHtml = guru.photo
+            ? `<img src="${guru.photo}" alt="${guru.nama_guru}" class="guru-photo">`
+            : `<div style="width:42px;height:42px;border-radius:50%;background:var(--card-alt);display:flex;align-items:center;justify-content:center;color:var(--ink-faint);border:2px solid #fff;"><i class="fas fa-user"></i></div>`;
+
+          row.innerHTML = `
+            <td>${guru.id_guru}</td>
+            <td>${guru.nama_guru}</td>
+            <td>${guru.nip || '-'}</td>
+            <td>${guru.mapel || '-'}</td>
+            <td>${guru.tlp || '-'}</td>
+            <td>${photoHtml}</td>
+            <td>
+              <button onclick="editGuru('${guru.id_guru}')" class="icon-btn edit" title="Edit"><i class="fas fa-edit"></i></button>
+              <button onclick="deleteGuru('${guru.id_guru}', '${guru.photo || ''}')" class="icon-btn delete" title="Hapus"><i class="fas fa-trash"></i></button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (err) {
+        console.error('Error loading guru data:', err);
+        tableBody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:var(--danger);">Gagal memuat data: ${err.message}</td></tr>`;
+      }
+    }
+
+    // --- Fungsi Edit Guru ---
+    window.editGuru = function(id) {
+      const guru = allGuruData.find(g => g.id_guru === id);
+      if (guru) {
+        idGuruInput.value = guru.id_guru;
+        idGuruInput.readOnly = true; // ID tidak boleh diubah saat edit (Primary Key)
+        document.getElementById('namaGuru').value = guru.nama_guru;
+        document.getElementById('nip').value = guru.nip;
+        document.getElementById('mapel').value = guru.mapel;
+        document.getElementById('telepon').value = guru.tlp;
+
+        if (guru.photo) {
+          imagePreview.src = guru.photo;
+          imagePreviewContainer.style.display = 'block';
+          fileNameDisplay.textContent = 'Foto saat ini tersimpan (Upload baru untuk mengganti)';
+          fileNameDisplay.style.display = 'block';
+        } else {
+          imagePreviewContainer.style.display = 'none';
+          fileNameDisplay.style.display = 'none';
+        }
+
+        isEditModeInput.value = "true";
+        guruModalTitle.textContent = "Edit Data Guru";
+
+        modal.classList.add('active');
+      }
+    }
+
+    // --- Fungsi Hapus Guru ---
+    window.deleteGuru = async function(id, photoUrl) {
+      if (confirm(`Apakah Anda yakin ingin menghapus data guru dengan ID: ${id}?`)) {
+        try {
+          if (photoUrl) {
+            try {
+              const path = photoUrl.split('/aset/')[1];
+              if (path) {
+                const fileName = decodeURIComponent(path);
+                const { error: storageError } = await supabaseClient.storage
+                  .from('aset')
+                  .remove([fileName]);
+                if (storageError) console.warn('Gagal menghapus file dari storage:', storageError);
+              }
+            } catch (storageErr) {
+              console.warn('Error parsing photo URL:', storageErr);
+            }
+          }
+
+          const { error } = await supabaseClient
+            .from('dataguru')
+            .delete()
+            .eq('id_guru', id);
+
+          if (error) throw error;
+
+          showMessage('Data guru berhasil dihapus.', 'success');
+          loadGuruData();
+        } catch (err) {
+          console.error('Gagal menghapus:', err);
+          showMessage('Gagal menghapus data: ' + err.message, 'error');
+        }
+      }
+    }
+
+    // Handle Form Submit (Simpan Data Guru)
+    guruForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const submitBtn = guruForm.querySelector('button[type="submit"]');
+      const originalHtml = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<span class="loading" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-radius:50%;border-top-color:#fff;animation:spin 1s linear infinite;"></span> Menyimpan...';
+      submitBtn.disabled = true;
+
+      try {
+        const isEdit = isEditModeInput.value === "true";
+        const nipVal = document.getElementById('nip').value;
+        const tlpVal = document.getElementById('telepon').value;
+
+        const isNumeric = (str) => /^\d+$/.test(str);
+        if ((nipVal && !isNumeric(nipVal)) || (tlpVal && !isNumeric(tlpVal))) {
+          throw new Error("NIP dan Nomor Telepon harus berkarakter angka");
+        }
+
+        if (!idGuruInput.value) {
+          throw new Error("ID Guru belum tergenerate. Isi NIP terlebih dahulu lalu klik di luar kolom NIP.");
+        }
+
+        // 1. Upload Foto ke Bucket 'aset'
+        let photoUrl = isEdit ? (imagePreview.src || '') : '';
+        const file = photoInput.files[0];
+
+        if (file) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `guru_${idGuruInput.value.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}.${fileExt}`;
+
+          const { error: uploadError } = await supabaseClient.storage
+            .from('aset')
+            .upload(fileName, file);
+
+          if (uploadError) throw new Error('Gagal upload foto: ' + uploadError.message);
+
+          const { data } = supabaseClient.storage.from('aset').getPublicUrl(fileName);
+          photoUrl = data.publicUrl;
+        }
+
+        // 2. Siapkan Data Object
+        const guruData = {
+          id_guru: idGuruInput.value,
+          nama_guru: document.getElementById('namaGuru').value,
+          nip: nipVal,
+          mapel: document.getElementById('mapel').value,
+          tlp: tlpVal,
+          photo: photoUrl
+        };
+
+        let result;
+
+        if (isEdit) {
+          result = await supabaseClient
+            .from('dataguru')
+            .update(guruData)
+            .eq('id_guru', idGuruInput.value);
+        } else {
+          result = await supabaseClient
+            .from('dataguru')
+            .insert([guruData]);
+        }
+
+        if (result.error) throw new Error('Gagal menyimpan data: ' + result.error.message);
+
+        showMessage('Data guru berhasil disimpan!', 'success');
+        closeModal();
+        loadGuruData();
+
+      } catch (err) {
+        console.error(err);
+        showMessage(err.message, 'error');
+      } finally {
+        submitBtn.innerHTML = originalHtml;
+        submitBtn.disabled = false;
+      }
+    });
+
+    // --- Export PDF Logic ---
+    document.getElementById('exportPdfBtn').addEventListener('click', async () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yPos = 20;
+
+      // Tambahkan KOP Sekolah jika ada
+      if (schoolData.kop_sekolah) {
+        try {
+          const response = await fetch(schoolData.kop_sekolah);
+          const blob = await response.blob();
+          const base64data = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+
+          const imgProps = doc.getImageProperties(base64data);
+          const pdfWidth = pageWidth - 20;
+          const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+          doc.addImage(base64data, 'PNG', 10, 10, pdfWidth, imgHeight);
+          yPos = 10 + imgHeight + 10;
+        } catch (err) {
+          console.error("Gagal memuat KOP Sekolah:", err);
+        }
+      }
+
+      doc.setFontSize(18);
+      doc.text("Laporan Data Guru", pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+
+      const schoolName = schoolData.nama_sekolah || document.querySelector('.navbar-brand span').textContent || 'SIMPEDIK-SD';
+      doc.setFontSize(12);
+      doc.setTextColor(100);
+      doc.text(schoolName, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 10;
+
+      const tableRows = [];
+      const rows = document.querySelectorAll('.custom-table tbody tr');
+
+      rows.forEach((row) => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length > 1) {
+          const rowData = [
+            cells[0].innerText,
+            cells[1].innerText,
+            cells[2].innerText,
+            cells[3].innerText,
+            cells[4].innerText
+          ];
+          tableRows.push(rowData);
+        }
+      });
+
+      doc.autoTable({
+        head: [['ID Guru', 'Nama Guru', 'NIP', 'Mata Pelajaran', 'Telepon']],
+        body: tableRows,
+        startY: yPos,
+        theme: 'grid',
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [32, 68, 58] }
+      });
+
+      doc.save('Data_Guru.pdf');
+    });
+  </script>
+
+</body>
+</html>

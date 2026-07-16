@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIMPEDIK-SD · Rombongan Belajar</title>
+<meta name="description" content="Kelola data rombongan belajar (kelas) SIMPEDIK-SD.">
+
+<!-- Font Awesome (ikon) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Google Fonts (sama dengan tema dahsboardadmin.html) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+
+<!-- Supabase JS SDK -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- jsPDF & AutoTable untuk Export PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  /* ============================================================
+     SIMPEDIK-SD — Design tokens (disamakan dengan dahsboardadmin.html)
+     Tema: kertas buku tulis sekolah (garis biru + margin merah)
+     ============================================================ */
+  :root{
+    --paper:        #c29a4f;
+    --paper-card:   #FFFEFB;
+    --rule-blue:    #B8D0E8;
+    --margin-red:   #C1503B;
+    --margin-red-soft: #E7A99A;
+    --ink:          #1C3357;
+    --ink-soft:     #52658A;
+    --ink-faint:    #8A99B8;
+    --gold:         #E3A23C;
+    --gold-deep:    #B87A22;
+    --green-deep:   #20443A;
+    --green-deep-2: #163229;
+    --danger:       #C1503B;
+
+    --font-display: 'Baloo 2', system-ui, sans-serif;
+    --font-body:    'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-hand:    'Caveat', cursive;
+
+    --radius-lg: 22px;
+    --radius-md: 14px;
+    --radius-sm: 9px;
+
+    --shadow-card: 0 18px 40px -14px rgba(28,51,87,0.28), 0 2px 8px rgba(28,51,87,0.06);
+    --shadow-soft: 0 8px 20px -10px rgba(28,51,87,0.22);
+
+    --header-height: 64px;
+    --primary-color: var(--gold-deep);
+    --secondary-color: var(--margin-red);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+  img{ max-width:100%; display:block; }
+  a{ color:inherit; }
+  button{ font-family:inherit; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- Background: kertas buku tulis ---------- */
+  .notebook-bg{
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    background-image:
+      linear-gradient(180deg, rgba(251,247,239,0.92) 0%, rgba(251,247,239,0.86) 45%, rgba(251,247,239,0.94) 100%),
+      url('assets/bg1.jpeg');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-color: var(--paper);
+    background-attachment:fixed;
+  }
+  .notebook-bg::before{
+    content:"";
+    position:absolute;
+    top:0; bottom:0;
+    left:clamp(28px, 8vw, 96px);
+    width:2px;
+    background:var(--margin-red-soft);
+    opacity:0.5;
+  }
+  @media (max-width:768px), (hover:none){
+    .notebook-bg{ background-attachment:scroll; }
+    .notebook-bg::before{ left:22px; }
+  }
+
+  /* --- Navbar --- */
+  .navbar {
+    height: var(--header-height);
+    background-color: var(--paper-card);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 clamp(14px, 3vw, 28px);
+    box-shadow: var(--shadow-soft);
+    border-bottom: 4px solid var(--gold);
+    z-index: 1002;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+  }
+  .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--ink);
+    min-width: 0;
+  }
+  .navbar-brand .logo-badge{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:var(--green-deep);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    overflow:hidden;
+    box-shadow:var(--shadow-soft);
+    border:2px solid #fff;
+  }
+  .navbar-brand .logo-badge img{ width:100%; height:100%; object-fit:contain; }
+  .navbar-brand span {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .navbar-dashboard-btn{
+    margin-left:auto;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    text-decoration:none;
+    font-size:0.85rem;
+    font-weight:700;
+    padding:9px 18px;
+    background-color:var(--green-deep);
+    color:#fff;
+    border-radius:999px;
+    box-shadow:0 8px 16px -8px rgba(32,68,58,0.55);
+    transition:background-color .18s ease, transform .12s ease;
+    flex-shrink:0;
+  }
+  .navbar-dashboard-btn:hover{ background-color:var(--green-deep-2); transform:translateY(-1px); }
+
+  /* --- Main Content --- */
+  .main-content {
+    margin-top: var(--header-height);
+    padding: clamp(16px, 3vw, 28px);
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-card {
+    background: var(--paper-card);
+    padding: 22px clamp(18px, 3vw, 26px) 24px;
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--gold);
+    margin-bottom: 20px;
+    overflow: visible;
+  }
+  .dashboard-card h2{
+    font-family: var(--font-display);
+    color: var(--ink);
+    font-size: 1.4rem;
+    margin:0 0 4px;
+  }
+  .dashboard-card h2 span{ color: var(--margin-red); }
+  .dashboard-card p{ color:var(--ink-soft); margin:0; font-size:0.9rem; }
+
+  .page-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  .action-buttons{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* --- Buttons --- */
+  .btn{
+    padding:11px 20px;
+    border:none;
+    border-radius:999px;
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:0.88rem;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    transition:all .18s ease;
+  }
+  .btn-primary{
+    background:var(--green-deep);
+    color:#fff;
+    box-shadow:0 8px 16px -8px rgba(32,68,58,0.55);
+  }
+  .btn-primary:hover{ background:var(--green-deep-2); transform:translateY(-1px); }
+  .btn-outline{
+    background:transparent;
+    border:1.5px solid var(--gold-deep);
+    color:var(--gold-deep);
+  }
+  .btn-outline:hover{ background:var(--gold-deep); color:#fff; }
+  .btn-secondary{
+    background:#EFE7D6;
+    color:var(--ink-soft);
+  }
+  .btn-secondary:hover{ background:#E5DCC6; color:var(--ink); }
+  .btn:disabled{ opacity:0.55; cursor:not-allowed; }
+
+  /* --- Stats --- */
+  .stats-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+    gap:20px;
+    margin-bottom:20px;
+  }
+  .stat-card {
+    background: var(--paper-card);
+    padding: 20px 22px;
+    border-radius: var(--radius-lg) 4px var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--margin-red);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .stat-card:nth-child(2){ border-top-color: var(--gold); }
+  .stat-info h3 { font-family: var(--font-display); font-size: 2rem; margin: 0 0 4px; color: var(--ink); }
+  .stat-info p { color: var(--ink-soft); font-size: 0.88rem; margin:0; font-weight:600; }
+  .stat-icon { font-size: 2.4rem; opacity: 0.25; color: var(--margin-red); }
+  .stat-card:nth-child(2) .stat-icon{ color: var(--gold-deep); }
+
+  /* --- Table card --- */
+  .table-card {
+    background: var(--paper-card);
+    padding: 20px;
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border-top: 5px solid var(--gold);
+  }
+  .card-header { margin-bottom: 15px; border-bottom: 1px dashed var(--rule-blue); padding-bottom: 10px; }
+  .card-header h3 { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); font-weight:700; margin:0; display:flex; align-items:center; gap:8px; }
+
+  .table-responsive { overflow-x: auto; }
+  .custom-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .custom-table th, .custom-table td { padding: 13px 16px; text-align: left; border-bottom: 1px solid #EFE7D6; }
+  .custom-table th { background-color: #FBF6EC; color: var(--ink-soft); font-weight: 700; font-family: var(--font-body); text-transform:uppercase; font-size:0.76rem; letter-spacing:0.03em; }
+  .custom-table tr:hover { background-color: #FBF6EC; }
+  .custom-table tr:last-child td{ border-bottom:none; }
+
+  .icon-btn{
+    background:none;
+    border:none;
+    cursor:pointer;
+    font-size:0.95rem;
+    padding:6px;
+    border-radius:8px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .icon-btn.edit{ color: var(--gold-deep); }
+  .icon-btn.edit:hover{ background:#FBEFD9; }
+  .icon-btn.delete{ color: var(--margin-red); }
+  .icon-btn.delete:hover{ background:#FBEAE6; }
+
+  /* --- Footer --- */
+  .main-footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+  .main-footer .tagline{
+    font-family: var(--font-hand);
+    font-size: 1.35rem;
+    color: var(--gold-deep);
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .main-footer p{ margin: 2px 0; }
+
+  @media (max-width: 768px) {
+    .navbar-brand span { font-size: 0.92rem; max-width: 38vw; }
+    .navbar-dashboard-btn span.label{ display:none; }
+    .main-content { padding-left: 10px; padding-right: 10px; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .action-buttons { width: 100%; }
+    .btn { flex: 1; justify-content: center; }
+  }
+
+  /* ---------- Modal Tambah/Edit Rombel ---------- */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    inset:0;
+    background-color: rgba(28,51,87,0.55);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    padding:20px;
+  }
+  .modal.active { display: flex; }
+
+  .modal-content {
+    background-color: var(--paper-card);
+    border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+    border-top: 5px solid var(--gold);
+    width: 100%;
+    max-width: 440px;
+    padding: 26px 24px 24px;
+    box-shadow: var(--shadow-card);
+    animation: slideDown 0.3s ease;
+  }
+  @keyframes slideDown {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    border-bottom: 1px dashed var(--rule-blue);
+    padding-bottom: 12px;
+  }
+  .modal-header h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    color: var(--ink);
+    font-size: 1.15rem;
+  }
+  .close-modal {
+    color: var(--ink-faint);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .close-modal:hover { color: var(--margin-red); }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--ink);
+    font-weight:700;
+    font-size: 0.82rem;
+  }
+  .form-group input {
+    width: 100%;
+    font-family:var(--font-body);
+    padding: 11px 13px;
+    background-color: #FCFBF8;
+    border: 1.5px solid #DCE3EE;
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+    font-size: 0.95rem;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .form-group input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 4px rgba(227,162,60,0.22);
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="notebook-bg" aria-hidden="true"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="dahsboardadmin.html" class="navbar-brand">
+      <span class="logo-badge">
+        <img src="" alt="Logo Sekolah" style="display: none;">
+      </span>
+      <span class="school-name"></span>
+    </a>
+    <a href="dahsboardadmin.html" class="navbar-dashboard-btn">
+      <i class="fas fa-arrow-left"></i> <span class="label">Dashboard</span>
+    </a>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- Header Halaman -->
+    <div class="dashboard-card">
+      <div class="page-header">
+        <div class="page-title">
+          <h2><i class="fas fa-layer-group" style="color:var(--margin-red);"></i> Data <span>Rombongan Belajar</span></h2>
+          <p>Kelola data kelas dan jumlah siswa di sini.</p>
+        </div>
+        <div class="action-buttons">
+          <button class="btn btn-primary" id="addRombelBtn"><i class="fas fa-plus"></i> Tambah Rombel</button>
+          <button class="btn btn-outline" id="exportPdfBtn"><i class="fas fa-file-pdf"></i> Export Pdf</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-info">
+          <h3 id="totalRombel">0</h3>
+          <p>Jumlah Rombel</p>
+        </div>
+        <i class="fas fa-layer-group stat-icon"></i>
+      </div>
+      <div class="stat-card">
+        <div class="stat-info">
+          <h3 id="totalSiswa">0</h3>
+          <p>Total Jumlah Siswa</p>
+        </div>
+        <i class="fas fa-users stat-icon"></i>
+      </div>
+    </div>
+
+    <!-- Tabel Data -->
+    <div class="table-card">
+      <div class="card-header">
+        <h3><i class="fas fa-table"></i> Daftar Rombongan Belajar</h3>
+      </div>
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">No</th>
+              <th>Nama Kelas</th>
+              <th>Jumlah Siswa</th>
+              <th style="width: 100px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Data akan dimuat di sini -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <p class="tagline">Cerdas, Kreatif, Berkarakter</p>
+      <p>&copy; <span id="year"></span> SIMPEDIK-SD · Seluruh hak cipta dilindungi</p>
+    </footer>
+  </main>
+
+  <!-- Modal Tambah Rombel -->
+  <div id="rombelModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Tambah Rombel Baru</h3>
+        <span class="close-modal">&times;</span>
+      </div>
+      <form id="addRombelForm">
+        <input type="hidden" id="rombelId">
+        <div class="form-group">
+          <label for="namaKelas">Nama Kelas</label>
+          <input type="text" id="namaKelas" name="namaKelas" required placeholder="Contoh: X TKJ 1">
+        </div>
+        <div class="form-group">
+          <label for="jumlahSiswa">Jumlah Siswa</label>
+          <input type="number" id="jumlahSiswa" name="jumlahSiswa" required placeholder="Contoh: 32">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary cancel-btn">Batal</button>
+          <button type="submit" class="btn btn-primary" id="saveRombelBtn">Tambah Rombongan Belajar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // --- Supabase Integration for Navbar Identity & Data ---
+    const supabaseUrl = 'https://ovaekdszrtrqyfxubjzw.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YWVrZHN6cnRycXlmeHVianp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNDk1MjAsImV4cCI6MjA5OTcyNTUyMH0.UBbE3tgpaVLHWoZX7h30KlrLSOVHTheZw7xvMLOrD_E';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    let schoolData = {}; // Menyimpan data sekolah untuk keperluan export
+
+    // Load Identitas Sekolah
+    async function loadSchoolIdentity() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('identitassekolah')
+          .select('nama_sekolah, logo, kop_sekolah')
+          .limit(1)
+          .single();
+
+        if (data) {
+          schoolData = data; // Simpan data ke variabel global
+          if (data.nama_sekolah) {
+            document.querySelector('.navbar-brand .school-name').textContent = data.nama_sekolah;
+          }
+          if (data.logo) {
+            const img = document.querySelector('.navbar-brand img');
+            img.src = data.logo;
+            img.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error("Error loading school identity:", err);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', loadSchoolIdentity);
+    document.addEventListener('DOMContentLoaded', loadRombelData);
+
+    // Load Data Rombel dari Supabase
+    async function loadRombelData() {
+      const tableBody = document.querySelector('.custom-table tbody');
+      tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Memuat data...</td></tr>';
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('rombel')
+          .select('*')
+          .order('id', { ascending: true });
+
+        if (error) throw error;
+
+        // Hitung Statistik
+        const totalRombelCount = data.length;
+        const totalSiswaCount = data.reduce((acc, curr) => acc + (Number(curr.jumlah_siswa) || 0), 0);
+
+        document.getElementById('totalRombel').textContent = totalRombelCount;
+        document.getElementById('totalSiswa').textContent = totalSiswaCount;
+
+        tableBody.innerHTML = '';
+
+        if (data.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Belum ada data rombel.</td></tr>';
+          return;
+        }
+
+        data.forEach((rombel, index) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${rombel.nama_kelas}</td>
+            <td>${rombel.jumlah_siswa}</td>
+            <td>
+              <button onclick="openEditModal(${rombel.id}, '${rombel.nama_kelas.replace(/'/g, "\\'")}', ${rombel.jumlah_siswa})" class="icon-btn edit" title="Edit Rombel"><i class="fas fa-edit"></i></button>
+              <button onclick="deleteRombel(${rombel.id})" class="icon-btn delete" title="Hapus Rombel"><i class="fas fa-trash"></i></button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('Error loading rombel data:', error);
+        tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--danger);">Gagal memuat data: ${error.message}</td></tr>`;
+      }
+    }
+
+    // Fungsi Hapus Rombel (Global)
+    window.deleteRombel = async function(id) {
+      if(confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+        try {
+          const { error } = await supabaseClient
+            .from('rombel')
+            .delete()
+            .eq('id', id);
+
+          if (error) throw error;
+          alert('Data berhasil dihapus');
+          loadRombelData();
+        } catch (error) {
+          console.error('Error deleting:', error);
+          alert('Gagal menghapus data: ' + error.message);
+        }
+      }
+    }
+
+    // --- Modal Logic ---
+    const modal = document.getElementById('rombelModal');
+    const addBtn = document.getElementById('addRombelBtn');
+    const closeSpan = document.querySelector('.close-modal');
+    const cancelBtn = document.querySelector('.cancel-btn');
+    const addRombelForm = document.getElementById('addRombelForm');
+    const modalTitle = document.querySelector('.modal-header h3');
+    const saveBtn = document.getElementById('saveRombelBtn');
+    const rombelIdInput = document.getElementById('rombelId');
+
+    // Buka Modal
+    addBtn.addEventListener('click', () => {
+      modalTitle.textContent = 'Tambah Rombel Baru';
+      saveBtn.textContent = 'Tambah Rombongan Belajar';
+      rombelIdInput.value = '';
+      addRombelForm.reset();
+      modal.classList.add('active');
+    });
+
+    // Buka Modal Edit (Global)
+    window.openEditModal = function(id, nama, jumlah) {
+      modalTitle.textContent = 'Edit Data Rombel';
+      saveBtn.textContent = 'Update Data';
+      rombelIdInput.value = id;
+      document.getElementById('namaKelas').value = nama;
+      document.getElementById('jumlahSiswa').value = jumlah;
+      modal.classList.add('active');
+    }
+
+    // Tutup Modal (Fungsi Helper)
+    function closeModal() {
+      modal.classList.remove('active');
+      addRombelForm.reset(); // Reset form saat ditutup
+    }
+
+    // Event Listeners untuk Tutup
+    closeSpan.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+
+    // Tutup jika klik di luar modal content
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+
+    // Handle Form Submit (Simpan Data Rombel)
+    addRombelForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const id = rombelIdInput.value;
+      const namaKelas = document.getElementById('namaKelas').value;
+      const jumlahSiswa = document.getElementById('jumlahSiswa').value;
+      const submitBtn = addRombelForm.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+
+      submitBtn.textContent = 'Menyimpan...';
+      submitBtn.disabled = true;
+
+      try {
+        let result;
+        if (id) {
+          // Update Data
+          result = await supabaseClient.from('rombel').update({ nama_kelas: namaKelas, jumlah_siswa: jumlahSiswa }).eq('id', id);
+        } else {
+          // Insert Data Baru
+          result = await supabaseClient.from('rombel').insert([{ nama_kelas: namaKelas, jumlah_siswa: jumlahSiswa }]);
+        }
+        const { error } = result;
+
+        if (error) throw error;
+
+        alert('Data Rombongan Belajar berhasil disimpan!');
+        closeModal();
+        loadRombelData(); // Refresh tabel data
+      } catch (error) {
+        console.error('Error saving data:', error);
+        alert('Gagal menyimpan data: ' + error.message);
+      } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }
+    });
+
+    // --- Export PDF Logic ---
+    document.getElementById('exportPdfBtn').addEventListener('click', async () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yPos = 20;
+
+      // Tambahkan KOP Sekolah jika ada
+      if (schoolData.kop_sekolah) {
+        try {
+          const response = await fetch(schoolData.kop_sekolah);
+          const blob = await response.blob();
+          const base64data = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+
+          const imgProps = doc.getImageProperties(base64data);
+          const pdfWidth = pageWidth - 20; // Margin kiri kanan 10
+          const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+          doc.addImage(base64data, 'PNG', 10, 10, pdfWidth, imgHeight);
+          yPos = 10 + imgHeight + 10; // Update posisi Y di bawah gambar
+        } catch (err) {
+          console.error("Gagal memuat KOP Sekolah:", err);
+        }
+      }
+
+      // Judul Dokumen
+      doc.setFontSize(18);
+      doc.text("Laporan Data Rombongan Belajar", pageWidth / 2, yPos, { align: 'center' });
+      yPos += 8;
+
+      // Nama Sekolah (ambil dari navbar)
+      const schoolName = schoolData.nama_sekolah || document.querySelector('.navbar-brand .school-name').textContent;
+      doc.setFontSize(12);
+      doc.setTextColor(100);
+      doc.text(schoolName, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 10;
+
+      // Persiapkan Data Tabel
+      const tableRows = [];
+      const rows = document.querySelectorAll('.custom-table tbody tr');
+
+      rows.forEach((row) => {
+        const cells = row.querySelectorAll('td');
+        // Pastikan bukan baris loading atau kosong (cek jika ada kolom data)
+        if (cells.length > 1) {
+          const rowData = [
+            cells[0].innerText, // No
+            cells[1].innerText, // Nama Kelas
+            cells[2].innerText  // Jumlah Siswa
+          ];
+          tableRows.push(rowData);
+        }
+      });
+
+      // Generate Tabel PDF
+      doc.autoTable({
+        head: [['No', 'Nama Kelas', 'Jumlah Siswa']],
+        body: tableRows,
+        startY: yPos,
+        theme: 'grid',
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [32, 68, 58] } // Warna green-deep tema
+      });
+
+      // Simpan File
+      doc.save('Data_Rombel.pdf');
+    });
+  </script>
+</body>
+</html>
