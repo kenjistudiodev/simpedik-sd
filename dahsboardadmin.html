@@ -111,7 +111,7 @@
     padding: 0 clamp(14px, 3vw, 28px);
     box-shadow: var(--shadow-soft);
     border-bottom: 4px solid var(--gold);
-    z-index: 1002;
+    z-index: 2500;
     position: fixed;
     top: 0;
     left: 0;
@@ -351,6 +351,208 @@
 
   .accordion-body { padding: 18px; color: var(--ink-soft); line-height: 1.6; overflow: visible; }
 
+  /* --- Menu Sheet (mobile bottom sheet) --- */
+  .sheet-handle { display: none; }
+  .menu-sheet-close { display: none; }
+
+  #menuSheetBackdrop {
+    display: none;
+    position: fixed;
+    top: var(--header-height);
+    left: 0; right: 0; bottom: 0;
+    background: rgba(28,51,87,0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 1900;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .mobile-menu-bar {
+    display: none;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 1950;
+    background: var(--paper-card);
+    border-top: 3px solid var(--gold);
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 -4px 14px rgba(28,51,87,0.15);
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1;
+    max-width: 260px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--green-deep), var(--green-deep-2));
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 8px 18px -8px rgba(32,68,58,.6);
+    transition: transform .12s ease;
+  }
+  .mobile-menu-btn:active { transform: translateY(1px); }
+  .mobile-menu-btn.logout-btn {
+    background: linear-gradient(135deg, var(--margin-red), #8f3a2a);
+    box-shadow: 0 8px 18px -8px rgba(193,80,59,.6);
+  }
+  .mobile-menu-btn.active {
+    background: linear-gradient(135deg, var(--margin-red), #8f3a2a);
+    box-shadow: 0 8px 18px -8px rgba(193,80,59,.6);
+  }
+
+  @media (max-width: 768px) {
+    .mobile-menu-bar { display: flex; }
+    #menuSheetBackdrop { display: block; }
+    #menuSheetBackdrop.active { opacity: 1; pointer-events: auto; }
+
+    #menuSheet {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 2000;
+      margin: 0;
+      max-height: 82vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      border-top: 5px solid var(--gold);
+      transform: translateY(110%);
+      transition: transform 0.35s cubic-bezier(.32,.72,0,1);
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.28);
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+    #menuSheet.active { transform: translateY(0); }
+
+    .sheet-handle {
+      display: block;
+      width: 44px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--rule-blue);
+      margin: 6px auto 12px;
+    }
+
+    .menu-sheet-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #FBEAE6;
+      color: var(--margin-red);
+      cursor: pointer;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    /* Beri ruang di bawah agar konten terakhir tidak tertutup tombol Menu sticky */
+    .main-content { padding-bottom: 90px; }
+  }
+
+  @media (min-width: 769px) {
+    .mobile-menu-bar { display: none !important; }
+    #menuSheetBackdrop { display: none !important; }
+  }
+
+  /* --- Logout Confirmation Modal --- */
+  .logout-modal-backdrop {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(28,51,87,0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .logout-modal-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .logout-modal {
+    background: var(--paper-card);
+    width: 100%;
+    max-width: 360px;
+    border-radius: var(--radius-lg);
+    border-top: 5px solid var(--margin-red);
+    box-shadow: var(--shadow-card);
+    padding: 28px 26px 24px;
+    text-align: center;
+    transform: scale(0.9) translateY(10px);
+    transition: transform 0.25s cubic-bezier(.32,.72,0,1);
+  }
+  .logout-modal-backdrop.active .logout-modal {
+    transform: scale(1) translateY(0);
+  }
+  .logout-modal-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--margin-red-soft), var(--margin-red));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    box-shadow: 0 8px 18px -8px rgba(193,80,59,.6);
+  }
+  .logout-modal h3 {
+    font-family: var(--font-display);
+    color: var(--ink);
+    font-size: 1.15rem;
+    margin: 0 0 8px;
+  }
+  .logout-modal p {
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    margin: 0 0 22px;
+    line-height: 1.5;
+  }
+  .logout-modal-actions {
+    display: flex;
+    gap: 12px;
+  }
+  .logout-modal-actions button {
+    flex: 1;
+    padding: 11px 14px;
+    border: none;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: transform .12s ease, filter .15s ease;
+  }
+  .logout-modal-actions button:active { transform: translateY(1px); }
+  .logout-btn-no {
+    background: #EFE7D6;
+    color: var(--ink);
+  }
+  .logout-btn-no:hover { background: #E5DAC2; }
+  .logout-btn-yes {
+    background: linear-gradient(135deg, var(--margin-red), #8f3a2a);
+    color: #fff;
+    box-shadow: 0 8px 18px -8px rgba(193,80,59,.6);
+  }
+  .logout-btn-yes:hover { filter: brightness(1.08); }
+
   /* --- Menu Icon Grid --- */
   .menu-icon-grid {
     display: grid;
@@ -431,7 +633,7 @@
 
   <!-- Navbar -->
   <nav class="navbar">
-    <a href="#" class="navbar-brand">
+    <a href="dashboardadmin.html" class="navbar-brand">
       <span class="logo-badge">
         <img src="" alt="Logo Sekolah" style="display:none;">
       </span>
@@ -460,131 +662,8 @@
       </div>
     </div>
 
-    <!-- Accordion Container -->
-    <div class="dashboard-card">
-      <div class="card-header">
-        <h3><i class="fas fa-info-circle" style="color: var(--gold-deep);"></i> Pilih Menu</h3>
-      </div>
-
-      <div class="accordion-item">
-        <div class="accordion-header" onclick="toggleAccordion(this)">
-          <span class="accordion-title">Menu Sistem</span>
-          <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="accordion-content">
-          <div class="accordion-body">
-            <div class="menu-icon-grid">
-              <a href="identitassekolah.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-navy"><i class="fas fa-school"></i></div>
-                <span class="menu-icon-label">Identitas Sekolah</span>
-              </a>
-              <a href="rombel.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-teal"><i class="fas fa-layer-group"></i></div>
-                <span class="menu-icon-label">Rombongan Belajar</span>
-              </a>
-              <a href="dataguru.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-blue"><i class="fas fa-chalkboard-teacher"></i></div>
-                <span class="menu-icon-label">Data Guru</span>
-              </a>
-              <a href="datasiswa.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-green"><i class="fas fa-user-graduate"></i></div>
-                <span class="menu-icon-label">Data Siswa</span>
-              </a>
-              <a href="walikelas.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-plum"><i class="fas fa-user-tie"></i></div>
-                <span class="menu-icon-label">Walikelas</span>
-              </a>
-              <a href="gurupiket.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-amber"><i class="fas fa-clipboard-list"></i></div>
-                <span class="menu-icon-label">Guru Piket</span>
-              </a>
-              <a href="mappingsiswa.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-teal"><i class="fas fa-sitemap"></i></div>
-                <span class="menu-icon-label">Mapping Siswa</span>
-              </a>
-              <a href="datamapel.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-gold"><i class="fas fa-book"></i></div>
-                <span class="menu-icon-label">Mata Pelajaran</span>
-              </a>
-              <a href="#" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-slate"><i class="fas fa-history"></i></div>
-                <span class="menu-icon-label">Back Up &amp; Reset</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="accordion-item">
-        <div class="accordion-header" onclick="toggleAccordion(this)">
-          <span class="accordion-title">Laporan</span>
-          <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="accordion-content">
-          <div class="accordion-body">
-            <div class="menu-icon-grid">
-              <a href="piketharianadmin.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-blue"><i class="fas fa-calendar-check"></i></div>
-                <span class="menu-icon-label">Piket Kebersihan</span>
-              </a>
-              <a href="absensiadmin.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-green"><i class="fas fa-user-check"></i></div>
-                <span class="menu-icon-label">Kehadiran Siswa</span>
-              </a>
-              <a href="nilaiakademisadmin.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-gold"><i class="fas fa-graduation-cap"></i></div>
-                <span class="menu-icon-label">Nilai Akademis</span>
-              </a>
-              <a href="kasusadmin.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-red"><i class="fas fa-exclamation-triangle"></i></div>
-                <span class="menu-icon-label">Kasus Belajar</span>
-              </a>
-              <a href="dispensasiadmin.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-plum"><i class="fas fa-file-signature"></i></div>
-                <span class="menu-icon-label">Dispensasi</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="accordion-item">
-        <div class="accordion-header" onclick="toggleAccordion(this)">
-          <span class="accordion-title">Tata Usaha</span>
-          <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="accordion-content">
-          <div class="accordion-body">
-            <div class="menu-icon-grid">
-              <a href="daftarpegawai.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-navy"><i class="fas fa-id-badge"></i></div>
-                <span class="menu-icon-label">Data Pegawai</span>
-              </a>
-              <a href="tatapersuratan.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-slate"><i class="fas fa-envelope-open-text"></i></div>
-                <span class="menu-icon-label">Tata Arsip</span>
-              </a>
-              <a href="daftarpesertasumbangan.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-teal"><i class="fas fa-users"></i></div>
-                <span class="menu-icon-label">Mapping Iuran Pendidikan</span>
-              </a>
-              <a href="pemasukankomite.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-green"><i class="fas fa-arrow-circle-down"></i></div>
-                <span class="menu-icon-label">Pemasukan Iuran Pendidikan</span>
-              </a>
-              <a href="pengeluarankomite.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-red"><i class="fas fa-arrow-circle-up"></i></div>
-                <span class="menu-icon-label">Pengeluaran Iuran Pendidikan</span>
-              </a>
-              <a href="neracakomite.html" class="menu-icon-btn">
-                <div class="menu-icon-circle ic-gold"><i class="fas fa-balance-scale"></i></div>
-                <span class="menu-icon-label">Neraca Iuran Pendidikan</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Titik sisip menu untuk mode desktop/tablet (diisi lewat JS, elemen aslinya tetap di luar <main> agar aman di mode HP) -->
+    <div id="menuSheetAnchor"></div>
 
     <div class="dashboard-card card-dark">
       <div class="card-header">
@@ -667,7 +746,193 @@
     </footer>
   </main>
 
+  <!-- Backdrop untuk Menu Sheet (mobile) -->
+  <div id="menuSheetBackdrop" onclick="closeMenuSheet()"></div>
+
+  <!-- Menu Sheet (elemen asli - tetap di luar <main> agar tidak ikut ter-blur/terpotong; di desktop/tablet akan dipindah ke dalam <main> lewat JS) -->
+  <div class="dashboard-card" id="menuSheet">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+      <h3><i class="fas fa-info-circle" style="color: var(--gold-deep);"></i> Pilih Menu</h3>
+      <span class="menu-sheet-close" onclick="closeMenuSheet()"><i class="fas fa-times"></i></span>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <span class="accordion-title">Menu Sistem</span>
+        <i class="fas fa-chevron-down accordion-icon"></i>
+      </div>
+      <div class="accordion-content">
+        <div class="accordion-body">
+          <div class="menu-icon-grid">
+            <a href="identitassekolah.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-navy"><i class="fas fa-school"></i></div>
+              <span class="menu-icon-label">Identitas Sekolah</span>
+            </a>
+            <a href="rombel.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-teal"><i class="fas fa-layer-group"></i></div>
+              <span class="menu-icon-label">Rombongan Belajar</span>
+            </a>
+            <a href="dataguru.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-blue"><i class="fas fa-chalkboard-teacher"></i></div>
+              <span class="menu-icon-label">Data Guru</span>
+            </a>
+            <a href="datasiswa.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-green"><i class="fas fa-user-graduate"></i></div>
+              <span class="menu-icon-label">Data Siswa</span>
+            </a>
+            <a href="walikelas.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-plum"><i class="fas fa-user-tie"></i></div>
+              <span class="menu-icon-label">Walikelas</span>
+            </a>
+            <a href="gurupiket.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-amber"><i class="fas fa-clipboard-list"></i></div>
+              <span class="menu-icon-label">Guru Piket</span>
+            </a>
+            <a href="mappingsiswa.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-teal"><i class="fas fa-sitemap"></i></div>
+              <span class="menu-icon-label">Mapping Siswa</span>
+            </a>
+            <a href="datamapel.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-gold"><i class="fas fa-book"></i></div>
+              <span class="menu-icon-label">Mata Pelajaran</span>
+            </a>
+            <a href="#" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-slate"><i class="fas fa-history"></i></div>
+              <span class="menu-icon-label">Back Up &amp; Reset</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <span class="accordion-title">Laporan</span>
+        <i class="fas fa-chevron-down accordion-icon"></i>
+      </div>
+      <div class="accordion-content">
+        <div class="accordion-body">
+          <div class="menu-icon-grid">
+            <a href="piketharianadmin.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-blue"><i class="fas fa-calendar-check"></i></div>
+              <span class="menu-icon-label">Piket Kebersihan</span>
+            </a>
+            <a href="absensiadmin.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-green"><i class="fas fa-user-check"></i></div>
+              <span class="menu-icon-label">Kehadiran Siswa</span>
+            </a>
+            <a href="nilaiakademisadmin.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-gold"><i class="fas fa-graduation-cap"></i></div>
+              <span class="menu-icon-label">Nilai Akademis</span>
+            </a>
+            <a href="kasusadmin.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-red"><i class="fas fa-exclamation-triangle"></i></div>
+              <span class="menu-icon-label">Kasus Belajar</span>
+            </a>
+            <a href="dispensasiadmin.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-plum"><i class="fas fa-file-signature"></i></div>
+              <span class="menu-icon-label">Dispensasi</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <span class="accordion-title">Tata Usaha</span>
+        <i class="fas fa-chevron-down accordion-icon"></i>
+      </div>
+      <div class="accordion-content">
+        <div class="accordion-body">
+          <div class="menu-icon-grid">
+            <a href="daftarpegawai.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-navy"><i class="fas fa-id-badge"></i></div>
+              <span class="menu-icon-label">Data Pegawai</span>
+            </a>
+            <a href="tatapersuratan.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-slate"><i class="fas fa-envelope-open-text"></i></div>
+              <span class="menu-icon-label">Tata Arsip</span>
+            </a>
+            <a href="daftarpesertasumbangan.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-teal"><i class="fas fa-users"></i></div>
+              <span class="menu-icon-label">Mapping Iuran Pendidikan</span>
+            </a>
+            <a href="pemasukankomite.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-green"><i class="fas fa-arrow-circle-down"></i></div>
+              <span class="menu-icon-label">Pemasukan Iuran Pendidikan</span>
+            </a>
+            <a href="pengeluarankomite.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-red"><i class="fas fa-arrow-circle-up"></i></div>
+              <span class="menu-icon-label">Pengeluaran Iuran Pendidikan</span>
+            </a>
+            <a href="neracakomite.html" class="menu-icon-btn">
+              <div class="menu-icon-circle ic-gold"><i class="fas fa-balance-scale"></i></div>
+              <span class="menu-icon-label">Neraca Iuran Pendidikan</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tombol Menu & Log Out Sticky (khusus tampilan mobile) -->
+  <div class="mobile-menu-bar">
+    <button type="button" class="mobile-menu-btn" id="mobileMenuBtn">
+      <i class="fas fa-bars"></i> <span id="mobileMenuBtnLabel">Menu</span>
+    </button>
+    <button type="button" class="mobile-menu-btn logout-btn" id="logoutBtn">
+      <i class="fas fa-sign-out-alt"></i> <span>Log Out</span>
+    </button>
+  </div>
+
+  <!-- Modal Konfirmasi Log Out -->
+  <div id="logoutModalBackdrop" class="logout-modal-backdrop">
+    <div class="logout-modal" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+      <div class="logout-modal-icon"><i class="fas fa-door-open"></i></div>
+      <h3 id="logoutModalTitle">Konfirmasi Keluar</h3>
+      <p>Apakah anda ingin keluar dari aplikasi..?</p>
+      <div class="logout-modal-actions">
+        <button type="button" class="logout-btn-no" id="logoutNoBtn">Tidak</button>
+        <button type="button" class="logout-btn-yes" id="logoutYesBtn">Ya, Keluar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // --- Reposisi Menu Sheet: inline di dalam <main> untuk desktop/tablet, ---
+    // --- tetap di luar <main> (posisi asli) untuk mode HP agar tidak ter-blur/terpotong ---
+    const menuSheetEl = document.getElementById('menuSheet');
+    const menuSheetAnchor = document.getElementById('menuSheetAnchor');
+    const menuSheetOriginalParent = menuSheetEl ? menuSheetEl.parentNode : null;
+    const menuSheetOriginalNextSibling = menuSheetEl ? menuSheetEl.nextSibling : null;
+    let menuSheetIsInline = false;
+
+    function positionMenuSheet() {
+      if (!menuSheetEl || !menuSheetAnchor) return;
+      const isDesktop = window.innerWidth >= 769;
+
+      if (isDesktop && !menuSheetIsInline) {
+        menuSheetAnchor.parentNode.insertBefore(menuSheetEl, menuSheetAnchor.nextSibling);
+        menuSheetIsInline = true;
+      } else if (!isDesktop && menuSheetIsInline) {
+        if (menuSheetOriginalNextSibling) {
+          menuSheetOriginalParent.insertBefore(menuSheetEl, menuSheetOriginalNextSibling);
+        } else {
+          menuSheetOriginalParent.appendChild(menuSheetEl);
+        }
+        menuSheetIsInline = false;
+      }
+    }
+
+    positionMenuSheet();
+    let menuSheetResizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(menuSheetResizeTimer);
+      menuSheetResizeTimer = setTimeout(positionMenuSheet, 120);
+    });
+
     // --- Accordion Toggle Function ---
     function toggleAccordion(header) {
       const content = header.nextElementSibling;
@@ -684,12 +949,97 @@
       }
     }
 
-    // --- Supabase Integration ---
-    const supabaseUrl = 'https://ixccpgfllwerlifpcpdp.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4Y2NwZ2ZsbHdlcmxpZnBjcGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTE3MTEsImV4cCI6MjA5ODQyNzcxMX0.CwrrPcl0RkDK4zRWhfp7oTqwNlxOIZIb3IGUUzKTE9Q';
+    // --- Menu Sheet (mobile bottom sheet) Toggle ---
+    const menuSheet = document.getElementById('menuSheet');
+    const menuSheetBackdrop = document.getElementById('menuSheetBackdrop');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
 
-    const absensiUrl = 'https://ixccpgfllwerlifpcpdp.supabase.co';
-    const absensiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4Y2NwZ2ZsbHdlcmxpZnBjcGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NTE3MTEsImV4cCI6MjA5ODQyNzcxMX0.CwrrPcl0RkDK4zRWhfp7oTqwNlxOIZIb3IGUUzKTE9Q';
+    const mobileMenuBtnIcon = mobileMenuBtn ? mobileMenuBtn.querySelector('i') : null;
+    const mobileMenuBtnLabel = document.getElementById('mobileMenuBtnLabel');
+
+    function openMenuSheet() {
+      menuSheet.classList.add('active');
+      menuSheetBackdrop.classList.add('active');
+      if (mobileMenuBtn) mobileMenuBtn.classList.add('active');
+      if (mobileMenuBtnIcon) { mobileMenuBtnIcon.classList.remove('fa-bars'); mobileMenuBtnIcon.classList.add('fa-times'); }
+      if (mobileMenuBtnLabel) mobileMenuBtnLabel.textContent = 'Tutup';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeMenuSheet() {
+      menuSheet.classList.remove('active');
+      menuSheetBackdrop.classList.remove('active');
+      if (mobileMenuBtn) mobileMenuBtn.classList.remove('active');
+      if (mobileMenuBtnIcon) { mobileMenuBtnIcon.classList.remove('fa-times'); mobileMenuBtnIcon.classList.add('fa-bars'); }
+      if (mobileMenuBtnLabel) mobileMenuBtnLabel.textContent = 'Menu';
+      document.body.style.overflow = '';
+
+      // Tutup semua accordion saat sheet ditutup, agar tinggi sheet kembali ke posisi awal
+      document.querySelectorAll('.accordion-header').forEach(h => {
+        h.classList.remove('active');
+        h.nextElementSibling.classList.remove('active');
+      });
+    }
+
+    if (mobileMenuBtn) {
+      mobileMenuBtn.addEventListener('click', () => {
+        if (menuSheet.classList.contains('active')) {
+          closeMenuSheet();
+        } else {
+          openMenuSheet();
+        }
+      });
+    }
+
+    // Tutup otomatis jika layar di-resize ke ukuran desktop saat sheet terbuka
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768) closeMenuSheet();
+    });
+
+    // --- Logout Confirmation Modal ---
+    const logoutBtn = document.getElementById('logoutBtn');
+    const logoutModalBackdrop = document.getElementById('logoutModalBackdrop');
+    const logoutNoBtn = document.getElementById('logoutNoBtn');
+    const logoutYesBtn = document.getElementById('logoutYesBtn');
+
+    function openLogoutModal() {
+      logoutModalBackdrop.classList.add('active');
+    }
+
+    function closeLogoutModal() {
+      logoutModalBackdrop.classList.remove('active');
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        closeMenuSheet();
+        openLogoutModal();
+      });
+    }
+
+    if (logoutNoBtn) {
+      logoutNoBtn.addEventListener('click', closeLogoutModal);
+    }
+
+    if (logoutYesBtn) {
+      logoutYesBtn.addEventListener('click', () => {
+        window.location.href = 'index.html';
+      });
+    }
+
+    // Klik di luar kotak modal (di area backdrop) juga menutup modal
+    if (logoutModalBackdrop) {
+      logoutModalBackdrop.addEventListener('click', (e) => {
+        if (e.target === logoutModalBackdrop) closeLogoutModal();
+      });
+    }
+
+    // --- Supabase Integration ---
+    const supabaseUrl = 'https://ovaekdszrtrqyfxubjzw.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YWVrZHN6cnRycXlmeHVianp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNDk1MjAsImV4cCI6MjA5OTcyNTUyMH0.UBbE3tgpaVLHWoZX7h30KlrLSOVHTheZw7xvMLOrD_E';
+
+    const absensiUrl = 'https://ovaekdszrtrqyfxubjzw.supabase.co';
+    const absensiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YWVrZHN6cnRycXlmeHVianp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNDk1MjAsImV4cCI6MjA5OTcyNTUyMH0.UBbE3tgpaVLHWoZX7h30KlrLSOVHTheZw7xvMLOrD_E';
 
     if (typeof supabase !== 'undefined') {
       const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
