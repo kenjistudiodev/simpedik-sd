@@ -512,6 +512,120 @@
         }
         .piket-popover .add-area-piket-btn:hover { opacity: 0.9; }
         @keyframes popoverIn { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* --- Menu Sheet (mobile bottom sheet) --- */
+        .sheet-handle { display: none; }
+        .menu-sheet-close { display: none; }
+
+        #menuSheetBackdrop {
+            display: none;
+            position: fixed;
+            top: var(--header-height);
+            left: 0; right: 0; bottom: 0;
+            background: rgba(28,51,87,0.55);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: 1900;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .mobile-menu-bar {
+            display: none;
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            z-index: 1950;
+            background: var(--paper-card);
+            border-top: 3px solid var(--gold);
+            padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 -4px 14px rgba(28,51,87,0.15);
+        }
+
+        .mobile-menu-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex: 1;
+            max-width: 260px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--green-deep), var(--green-deep-2));
+            color: #fff;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            box-shadow: 0 8px 18px -8px rgba(32,68,58,.6);
+            transition: transform .12s ease;
+        }
+        .mobile-menu-btn:active { transform: translateY(1px); }
+        .mobile-menu-btn.logout-btn {
+            background: linear-gradient(135deg, var(--margin-red), #8f3a2a);
+            box-shadow: 0 8px 18px -8px rgba(193,80,59,.6);
+        }
+        .mobile-menu-btn.active {
+            background: linear-gradient(135deg, var(--margin-red), #8f3a2a);
+            box-shadow: 0 8px 18px -8px rgba(193,80,59,.6);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-bar { display: flex; }
+            #menuSheetBackdrop { display: block; }
+            #menuSheetBackdrop.active { opacity: 1; pointer-events: auto; }
+
+            #menuSheet {
+                position: fixed;
+                left: 0; right: 0; bottom: 0;
+                z-index: 2000;
+                margin: 0;
+                max-height: 82vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+                border-top: 5px solid var(--gold);
+                transform: translateY(110%);
+                transition: transform 0.35s cubic-bezier(.32,.72,0,1);
+                box-shadow: 0 -10px 30px rgba(0,0,0,0.28);
+                padding-bottom: calc(24px + env(safe-area-inset-bottom));
+            }
+            #menuSheet.active { transform: translateY(0); }
+
+            .sheet-handle {
+                display: block;
+                width: 44px;
+                height: 5px;
+                border-radius: 999px;
+                background: var(--rule-blue);
+                margin: 6px auto 12px;
+            }
+
+            .menu-sheet-close {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: #FBEAE6;
+                color: var(--margin-red);
+                cursor: pointer;
+                font-size: 0.9rem;
+                flex-shrink: 0;
+            }
+
+            /* Beri ruang di bawah agar konten terakhir tidak tertutup tombol Menu sticky */
+            .main-content { padding-bottom: 90px; }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-menu-bar { display: none !important; }
+            #menuSheetBackdrop { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -580,12 +694,28 @@
             </div>
         </div>
 
-        <!-- Container Menu Grid -->
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h3><i class="fas fa-th-large" style="color: var(--gold-deep);"></i> Menu Guru</h3>
-            </div>
-            <div class="menu-grid">
+        <!-- Titik sisip menu untuk mode desktop/tablet (diisi lewat JS, elemen aslinya tetap di luar <main> agar aman di mode HP) -->
+        <div id="menuSheetAnchor"></div>
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <p class="tagline">Cerdas, Kreatif, Berkarakter</p>
+            <p>&copy; 2026 SMKN 1 SIMPANG TERITIP.</p>
+            <p>CopyRight Kenji Studio Developer.</p>
+        </footer>
+    </main>
+
+    <!-- Backdrop untuk Menu Sheet (mobile) -->
+    <div id="menuSheetBackdrop" onclick="closeMenuSheet()"></div>
+
+    <!-- Menu Sheet (elemen asli - tetap di luar <main> agar tidak ikut ter-blur/terpotong; di desktop/tablet akan dipindah ke dalam <main> lewat JS) -->
+    <div class="dashboard-card" id="menuSheet">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div class="card-header">
+            <h3><i class="fas fa-th-large" style="color: var(--gold-deep);"></i> Menu Guru</h3>
+            <span class="menu-sheet-close" onclick="closeMenuSheet()"><i class="fas fa-times"></i></span>
+        </div>
+        <div class="menu-grid">
 
 
                 <a href="#" class="menu-card" id="guruPiketLink">
@@ -669,16 +799,18 @@
                     </div>
                     <span>Log Out</span>
                 </a>
-            </div>
         </div>
+    </div>
 
-        <!-- Footer -->
-        <footer class="main-footer">
-            <p class="tagline">Cerdas, Kreatif, Berkarakter</p>
-            <p>&copy; 2026 SMKN 1 SIMPANG TERITIP.</p>
-            <p>CopyRight Kenji Studio Developer.</p>
-        </footer>
-    </main>
+    <!-- Tombol Menu & Log Out Sticky (khusus tampilan mobile) -->
+    <div class="mobile-menu-bar">
+        <button type="button" class="mobile-menu-btn" id="mobileMenuBtn">
+            <i class="fas fa-bars"></i> <span id="mobileMenuBtnLabel">Menu</span>
+        </button>
+        <button type="button" class="mobile-menu-btn logout-btn" id="mobileLogoutBtn">
+            <i class="fas fa-sign-out-alt"></i> <span>Log Out</span>
+        </button>
+    </div>
 
 
     <!-- Modal Guru Piket -->
@@ -894,6 +1026,88 @@
     </div>
 
     <script>
+        // --- Reposisi Menu Sheet: inline di dalam <main> untuk desktop/tablet, ---
+        // --- tetap di luar <main> (posisi asli) untuk mode HP agar tidak ter-blur/terpotong ---
+        const menuSheetEl = document.getElementById('menuSheet');
+        const menuSheetAnchor = document.getElementById('menuSheetAnchor');
+        const menuSheetOriginalParent = menuSheetEl ? menuSheetEl.parentNode : null;
+        const menuSheetOriginalNextSibling = menuSheetEl ? menuSheetEl.nextSibling : null;
+        let menuSheetIsInline = false;
+
+        function positionMenuSheet() {
+            if (!menuSheetEl || !menuSheetAnchor) return;
+            const isDesktop = window.innerWidth >= 769;
+
+            if (isDesktop && !menuSheetIsInline) {
+                menuSheetAnchor.parentNode.insertBefore(menuSheetEl, menuSheetAnchor.nextSibling);
+                menuSheetIsInline = true;
+            } else if (!isDesktop && menuSheetIsInline) {
+                if (menuSheetOriginalNextSibling) {
+                    menuSheetOriginalParent.insertBefore(menuSheetEl, menuSheetOriginalNextSibling);
+                } else {
+                    menuSheetOriginalParent.appendChild(menuSheetEl);
+                }
+                menuSheetIsInline = false;
+            }
+        }
+
+        positionMenuSheet();
+        let menuSheetResizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(menuSheetResizeTimer);
+            menuSheetResizeTimer = setTimeout(positionMenuSheet, 120);
+        });
+
+        // --- Menu Sheet (mobile bottom sheet) Toggle ---
+        const menuSheet = document.getElementById('menuSheet');
+        const menuSheetBackdrop = document.getElementById('menuSheetBackdrop');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
+
+        const mobileMenuBtnIcon = mobileMenuBtn ? mobileMenuBtn.querySelector('i') : null;
+        const mobileMenuBtnLabel = document.getElementById('mobileMenuBtnLabel');
+
+        function openMenuSheet() {
+            menuSheet.classList.add('active');
+            menuSheetBackdrop.classList.add('active');
+            if (mobileMenuBtn) mobileMenuBtn.classList.add('active');
+            if (mobileMenuBtnIcon) { mobileMenuBtnIcon.classList.remove('fa-bars'); mobileMenuBtnIcon.classList.add('fa-times'); }
+            if (mobileMenuBtnLabel) mobileMenuBtnLabel.textContent = 'Tutup';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMenuSheet() {
+            menuSheet.classList.remove('active');
+            menuSheetBackdrop.classList.remove('active');
+            if (mobileMenuBtn) mobileMenuBtn.classList.remove('active');
+            if (mobileMenuBtnIcon) { mobileMenuBtnIcon.classList.remove('fa-times'); mobileMenuBtnIcon.classList.add('fa-bars'); }
+            if (mobileMenuBtnLabel) mobileMenuBtnLabel.textContent = 'Menu';
+            document.body.style.overflow = '';
+        }
+
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', () => {
+                if (menuSheet.classList.contains('active')) {
+                    closeMenuSheet();
+                } else {
+                    openMenuSheet();
+                }
+            });
+        }
+
+        if (mobileLogoutBtn) {
+            mobileLogoutBtn.addEventListener('click', () => {
+                if (confirm('Apakah Anda yakin ingin keluar?')) {
+                    window.location.href = 'index.html';
+                }
+            });
+        }
+
+        // Tutup otomatis jika layar di-resize ke ukuran desktop saat sheet terbuka
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) closeMenuSheet();
+        });
+
         // --- Supabase Integration for Navbar ---
         const supabaseUrl = 'https://ovaekdszrtrqyfxubjzw.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YWVrZHN6cnRycXlmeHVianp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNDk1MjAsImV4cCI6MjA5OTcyNTUyMH0.UBbE3tgpaVLHWoZX7h30KlrLSOVHTheZw7xvMLOrD_E';
