@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SIMPEDIK-SD · Masuk ke Akun</title>
+        <!-- 🔥 PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <link rel="icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
 <meta name="description" content="Sistem Informasi Pendidikan Sekolah Dasar — masuk sebagai Siswa, Guru, Tata Usaha, atau Admin Utama.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -294,7 +300,8 @@
     margin-bottom:6px;
   }
   .field input[type="text"],
-  .field input[type="password"]{
+  .field input[type="password"],
+  .field select{
     width:100%;
     font-family:var(--font-body);
     font-size:0.98rem;
@@ -307,7 +314,8 @@
     transition:border-color .15s ease, box-shadow .15s ease;
   }
   .field input::placeholder{ color:var(--ink-faint); }
-  .field input:focus-visible{
+  .field input:focus-visible,
+  .field select:focus-visible{
     border-color:var(--gold);
     box-shadow:0 0 0 4px rgba(227,162,60,0.22);
   }
@@ -581,7 +589,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>
           Siswa
         </button>
-        <button type="button" class="role-tab" data-role="guru" data-id-label="NIP" data-id-placeholder="Masukkan NIP" role="tab" aria-selected="false">
+        <button type="button" class="role-tab" data-role="guru" data-id-label="Nama Guru" data-id-placeholder="Pilih Nama Guru" role="tab" aria-selected="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
           Guru
         </button>
@@ -606,6 +614,9 @@
           <div class="field">
             <label for="username" id="usernameFieldLabel">NIS</label>
             <input type="text" id="username" name="username" autocomplete="username" placeholder="Masukkan NIS" required>
+            <select id="guruNameSelect" name="guruNameSelect" style="display:none;">
+              <option value="">Pilih Nama Guru</option>
+            </select>
           </div>
 
           <div class="field">
@@ -669,7 +680,41 @@
     var roleBtnLabel = document.getElementById('roleBtnLabel');
     var usernameFieldLabel = document.getElementById('usernameFieldLabel');
     var usernameInput = document.getElementById('username');
+    var guruNameSelect = document.getElementById('guruNameSelect');
     var currentRole = 'siswa';
+    var guruListLoaded = false;
+
+    function loadGuruOptions() {
+      if (guruListLoaded || !supabaseClient) return;
+      guruListLoaded = true;
+
+      guruNameSelect.innerHTML = '<option value="">Memuat data guru...</option>';
+
+      supabaseClient
+        .from('dataguru')
+        .select('nama_guru, nip::text')
+        .order('nama_guru', { ascending: true })
+        .then(function (result) {
+          var data = result.data;
+          var error = result.error;
+
+          if (error || !data || data.length === 0) {
+            guruNameSelect.innerHTML = '<option value="">Data guru tidak ditemukan</option>';
+            guruListLoaded = false;
+            return;
+          }
+
+          var options = '<option value="">Pilih Nama Guru</option>';
+          data.forEach(function (guru) {
+            options += '<option value="' + (guru.nip || guru.nama_guru) + '">' + guru.nama_guru + '</option>';
+          });
+          guruNameSelect.innerHTML = options;
+        })
+        .catch(function () {
+          guruNameSelect.innerHTML = '<option value="">Gagal memuat data guru</option>';
+          guruListLoaded = false;
+        });
+    }
 
     tabs.forEach(function (tab) {
       tab.addEventListener('click', function () {
@@ -687,8 +732,21 @@
         roleLabel.textContent = roleNames[currentRole];
         roleBtnLabel.textContent = 'sebagai ' + roleNames[currentRole];
         usernameFieldLabel.textContent = idLabel;
-        usernameInput.placeholder = idPlaceholder;
         usernameInput.value = '';
+
+        if (currentRole === 'guru') {
+          usernameInput.style.display = 'none';
+          usernameInput.required = false;
+          guruNameSelect.style.display = '';
+          guruNameSelect.value = '';
+          loadGuruOptions();
+        } else {
+          usernameInput.style.display = '';
+          usernameInput.required = true;
+          usernameInput.placeholder = idPlaceholder;
+          guruNameSelect.style.display = 'none';
+        }
+
         document.getElementById('formAlert').classList.remove('is-visible');
       });
     });
@@ -717,11 +775,12 @@
 
     var welcomeOverlay = document.getElementById('welcomeOverlay');
 
-    function showWelcomeModal() {
+    function showWelcomeModal(title, redirectUrl) {
+      document.getElementById('welcomeModalTitle').textContent = title;
       welcomeOverlay.classList.add('is-visible');
       welcomeOverlay.setAttribute('aria-hidden', 'false');
       setTimeout(function () {
-        window.location.href = 'dahsboardadmin.html';
+        window.location.href = redirectUrl;
       }, 1600);
     }
 
@@ -755,9 +814,53 @@
 
         if (data) {
           formAlert.classList.remove('is-visible');
-          showWelcomeModal();
+          showWelcomeModal('Selamat Datang Admin Utama', 'dahsboardadmin.html');
         } else {
           formAlert.textContent = 'Maaf, Username atau Kata Sandi yang anda masukan,SALAH...!';
+          formAlert.classList.add('is-visible');
+        }
+      } catch (err) {
+        formAlert.textContent = 'Terjadi kesalahan saat memvalidasi data. Coba lagi.';
+        formAlert.classList.add('is-visible');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    async function validateGuruLogin(namaGuru, nip) {
+      if (!supabaseClient) {
+        formAlert.textContent = 'Tidak dapat terhubung ke server. Coba lagi nanti.';
+        formAlert.classList.add('is-visible');
+        return;
+      }
+
+      var submitBtn = form.querySelector('.btn-submit');
+      submitBtn.disabled = true;
+
+      try {
+        var result = await supabaseClient
+          .from('dataguru')
+          .select('nama_guru, nip::text')
+          .eq('nama_guru', namaGuru)
+          .eq('nip', nip)
+          .limit(1)
+          .maybeSingle();
+
+        var data = result.data;
+        var error = result.error;
+
+        if (error) {
+          formAlert.textContent = 'Terjadi kesalahan saat memvalidasi data. Coba lagi.';
+          formAlert.classList.add('is-visible');
+          return;
+        }
+
+        if (data) {
+          formAlert.classList.remove('is-visible');
+          sessionStorage.setItem('guru_session', JSON.stringify({ nama: data.nama_guru }));
+          showWelcomeModal('Selamat Datang, ' + data.nama_guru, 'dashboardguru.html');
+        } else {
+          formAlert.textContent = 'Maaf, Nama Guru atau NIP yang anda masukan, SALAH...!';
           formAlert.classList.add('is-visible');
         }
       } catch (err) {
@@ -775,7 +878,8 @@
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var username = usernameInput.value.trim();
+      var username = (currentRole === 'guru' ? guruNameSelect.value : usernameInput.value).trim();
+      var namaGuru = currentRole === 'guru' ? guruNameSelect.options[guruNameSelect.selectedIndex].text : '';
       var password = passwordInput.value.trim();
 
       if (!username || !password) {
@@ -791,10 +895,25 @@
         return;
       }
 
+      if (currentRole === 'guru') {
+        validateGuruLogin(namaGuru, password);
+        return;
+      }
+
       // TODO: kirim { role: currentRole, username, password } ke endpoint autentikasi.
-      console.log('Percobaan masuk:', { role: currentRole, username: username });
+      console.log('Percobaan masuk:', { role: currentRole, username: username, nama_guru: namaGuru });
     });
   </script>
+             <!-- 🔥 SERVICE WORKER -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('service-worker.js')
+            .then(reg => console.log('Service Worker aktif'))
+            .catch(err => console.log('SW gagal:', err));
+        });
+    }
+    </script>
 
 </body>
 </html>
