@@ -169,6 +169,31 @@
   }
   .navbar-date i{ color: var(--gold-deep); }
 
+  .navbar-logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--margin-red), #8f3a2a);
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    box-shadow: 0 6px 14px -6px rgba(193,80,59,.6);
+    transition: transform .12s ease, filter .12s ease;
+    flex-shrink: 0;
+  }
+  .navbar-logout-btn:hover { filter: brightness(1.08); }
+  .navbar-logout-btn:active { transform: translateY(1px); }
+
+  @media (max-width: 480px) {
+    .navbar-logout-btn span { display: none; }
+    .navbar-logout-btn { padding: 8px 12px; }
+  }
+
   /* --- Main Content --- */
   .main-content {
     margin-top: var(--header-height);
@@ -643,6 +668,9 @@
       <i class="far fa-calendar-alt"></i>
       <span id="navbarDate"></span>
     </div>
+    <button type="button" class="navbar-logout-btn" id="logoutBtnDesktop" title="Log Out">
+      <i class="fas fa-sign-out-alt"></i> <span>Log Out</span>
+    </button>
   </nav>
 
   <!-- Main Content Area -->
@@ -998,6 +1026,7 @@
 
     // --- Logout Confirmation Modal ---
     const logoutBtn = document.getElementById('logoutBtn');
+    const logoutBtnDesktop = document.getElementById('logoutBtnDesktop');
     const logoutModalBackdrop = document.getElementById('logoutModalBackdrop');
     const logoutNoBtn = document.getElementById('logoutNoBtn');
     const logoutYesBtn = document.getElementById('logoutYesBtn');
@@ -1013,6 +1042,12 @@
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         closeMenuSheet();
+        openLogoutModal();
+      });
+    }
+
+    if (logoutBtnDesktop) {
+      logoutBtnDesktop.addEventListener('click', () => {
         openLogoutModal();
       });
     }
